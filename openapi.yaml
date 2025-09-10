@@ -1,0 +1,2690 @@
+openapi: 3.1.0
+info:
+  title: HRIS & Device Integration API
+  version: 1.0.0
+  description: |
+    Comprehensive API for HRIS with mobile apps, approval workflows, and Arduino-based devices (RFID/Fingerprint).
+    - Auth: JWT with refresh, optional 2FA and biometric login
+    - Pagination: RFC-style `page`, `per_page`, and `X-Total-Count` header
+    - Idempotency: Use `Idempotency-Key` for POST/PUT/PATCH where supported
+    - Rate limiting: Responses may include `X-RateLimit-*` headers
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://staging.api.example.com
+    description: Staging
+tags:
+  - name: Auth
+  - name: Device
+  - name: Admin · Workflows
+  - name: Admin · Approvals Analytics
+  - name: Approvals
+  - name: Delegations
+  - name: Attendance (Mobile)
+  - name: Geofence & Location
+  - name: Schedule & Shifts
+  - name: Leave (Mobile)
+  - name: Payroll (Mobile)
+  - name: Overtime (Mobile)
+  - name: My Approvals (Mobile)
+  - name: Notifications
+  - name: Arduino · RFID
+  - name: Arduino · Fingerprint
+  - name: Arduino · Device Ops
+  - name: Arduino · Device Employees
+  - name: Admin · Dashboard & Analytics
+  - name: Admin · Employees
+  - name: Admin · Attendance
+  - name: Admin · Devices
+  - name: Admin · Leave
+  - name: Admin · Payroll
+  - name: Admin · System
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Email/password login (2FA-aware)
+      operationId: authLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                value: { email: user@example.com, password: 'secret123' }
+      responses:
+        '200':
+          description: Login success (maybe requires 2FA verification)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthLoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/auth/biometric-login:
+    post:
+      tags: [Auth]
+      summary: Biometric authentication (e.g., device face/fingerprint token)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BiometricLoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/auth/two-factor/enable:
+    post:
+      tags: [Auth]
+      summary: Enable 2FA for user (TOTP)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Secret and provisioning URI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/auth/two-factor/verify:
+    post:
+      tags: [Auth]
+      summary: Verify 2FA token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerifyRequest'
+      responses:
+        '200':
+          description: 2FA verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Secure logout with token cleanup
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: Logged out
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+              required: [refresh_token]
+      responses:
+        '200':
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get user profile with permissions
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+    put:
+      tags: [Auth]
+      summary: Update profile with validation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Profile' }
+
+  /api/device/register:
+    post:
+      tags: [Device]
+      summary: Register new Arduino device
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegisterRequest' }
+      responses:
+        '201':
+          description: Device registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Device' }
+  /api/device/authenticate:
+    post:
+      tags: [Device]
+      summary: Device authentication (exchange device token)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceAuthRequest' }
+      responses:
+        '200':
+          description: Device token issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceAuthResponse' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /api/device/heartbeat:
+    post:
+      tags: [Device]
+      summary: Device health status
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceHeartbeat' }
+      responses:
+        '204':
+          description: Heartbeat accepted
+  /api/device/config/{device_id}:
+    get:
+      tags: [Device]
+      summary: Get device config
+      security: [{ deviceToken: [] }, { bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/deviceId'
+      responses:
+        '200':
+          description: Device configuration
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceConfig' }
+    put:
+      tags: [Device]
+      summary: Update device settings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/deviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceConfigUpdate' }
+      responses:
+        '200':
+          description: Updated config
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DeviceConfig' }
+
+  /api/admin/workflows:
+    get:
+      tags: ["Admin · Workflows"]
+      summary: List approval workflows
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        '200':
+          description: Paginated workflows
+          headers:
+            X-Total-Count:
+              description: Total items
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Workflow' }
+    post:
+      tags: ["Admin · Workflows"]
+      summary: Create new workflow
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workflow' }
+  /api/admin/workflows/{id}:
+    put:
+      tags: ["Admin · Workflows"]
+      summary: Update workflow
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Workflow' }
+    delete:
+      tags: ["Admin · Workflows"]
+      summary: Delete workflow
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted
+  /api/admin/workflows/{id}/test:
+    post:
+      tags: ["Admin · Workflows"]
+      summary: Test workflow configuration
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Test results
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowTestResult' }
+
+  /api/admin/workflows/{id}/steps:
+    get:
+      tags: ["Admin · Workflows"]
+      summary: Get workflow steps
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: Steps
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/WorkflowStep' }
+    post:
+      tags: ["Admin · Workflows"]
+      summary: Add workflow step
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowStepCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowStep' }
+  /api/admin/workflow-steps/{id}:
+    put:
+      tags: ["Admin · Workflows"]
+      summary: Update workflow step
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkflowStepUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkflowStep' }
+    delete:
+      tags: ["Admin · Workflows"]
+      summary: Delete workflow step
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '204':
+          description: Deleted
+
+  /api/approvals/pending:
+    get:
+      tags: [Approvals]
+      summary: Get pending approvals for user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        '200':
+          description: Pending approvals
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/approvals/history:
+    get:
+      tags: [Approvals]
+      summary: Get approval history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        '200':
+          description: History
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/approvals/{id}/approve:
+    post:
+      tags: [Approvals]
+      summary: Approve request
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalActionRequest' }
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/approvals/{id}/reject:
+    post:
+      tags: [Approvals]
+      summary: Reject request
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApprovalActionRequest' }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/approvals/{id}/delegate:
+    post:
+      tags: [Approvals]
+      summary: Delegate approval
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DelegateRequest' }
+      responses:
+        '200':
+          description: Delegated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/approvals/bulk-action:
+    post:
+      tags: [Approvals]
+      summary: Bulk approve/reject
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkApprovalAction' }
+      responses:
+        '200':
+          description: Result list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/BulkApprovalResult' }
+
+  /api/approvals/delegations:
+    get:
+      tags: [Delegations]
+      summary: Get user delegations
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Delegations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Delegation' }
+    post:
+      tags: [Delegations]
+      summary: Create delegation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DelegationCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delegation' }
+  /api/approvals/delegations/{id}:
+    put:
+      tags: [Delegations]
+      summary: Update delegation
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DelegationUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Delegation' }
+    delete:
+      tags: [Delegations]
+      summary: Remove delegation
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '204':
+          description: Deleted
+
+  /api/admin/approvals/analytics:
+    get:
+      tags: ["Admin · Approvals Analytics"]
+      summary: Approval analytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Aggregates
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalAnalytics' }
+  /api/admin/approvals/bottlenecks:
+    get:
+      tags: ["Admin · Approvals Analytics"]
+      summary: Identify approval bottlenecks
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Bottlenecks
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Bottleneck' }
+  /api/admin/approvals/performance:
+    get:
+      tags: ["Admin · Approvals Analytics"]
+      summary: Approval performance metrics
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformanceMetrics' }
+
+  /api/attendance/gps/check-in:
+    post:
+      tags: ["Attendance (Mobile)"]
+      summary: GPS-based check-in with photo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/GpsCheckInForm' }
+      responses:
+        '201':
+          description: Check-in recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/attendance/gps/check-out:
+    post:
+      tags: ["Attendance (Mobile)"]
+      summary: GPS-based check-out
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GpsCheckOutRequest' }
+      responses:
+        '201':
+          description: Check-out recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/attendance/offline/sync:
+    post:
+      tags: ["Attendance (Mobile)"]
+      summary: Sync offline attendance data
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OfflineAttendanceSync' }
+      responses:
+        '200':
+          description: Synced
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncResult' }
+  /api/attendance/status:
+    get:
+      tags: ["Attendance (Mobile)"]
+      summary: Current attendance status
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceStatus' }
+  /api/attendance/history:
+    get:
+      tags: ["Attendance (Mobile)"]
+      summary: Paginated attendance history
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        '200':
+          description: History
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/attendance/summary/{period}:
+    get:
+      tags: ["Attendance (Mobile)"]
+      summary: Attendance summary with analytics
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: period
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [weekly, monthly, quarterly, yearly]
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceSummary' }
+
+  /api/geofence/check:
+    post:
+      tags: ["Geofence & Location"]
+      summary: Validate if in office area
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GeofenceCheckRequest' }
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GeofenceCheckResult' }
+  /api/locations/nearby:
+    get:
+      tags: ["Geofence & Location"]
+      summary: Get nearby office locations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/lat'
+        - $ref: '#/components/parameters/lng'
+        - name: radius_km
+          in: query
+          schema: { type: number, default: 5 }
+      responses:
+        '200':
+          description: Locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OfficeLocation' }
+  /api/location/update:
+    post:
+      tags: ["Geofence & Location"]
+      summary: Update current location (background ping)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LocationUpdate' }
+      responses:
+        '204':
+          description: Updated
+
+  /api/schedule/current:
+    get:
+      tags: ["Schedule & Shifts"]
+      summary: Current shift and schedule
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current schedule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shift' }
+  /api/schedule/upcoming:
+    get:
+      tags: ["Schedule & Shifts"]
+      summary: Upcoming shifts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Upcoming list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Shift' }
+  /api/shifts/calendar/{month}:
+    get:
+      tags: ["Schedule & Shifts"]
+      summary: Monthly shift calendar
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: month
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }
+      responses:
+        '200':
+          description: Calendar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftCalendar' }
+  /api/shifts/swap/request:
+    post:
+      tags: ["Schedule & Shifts"]
+      summary: Request shift swap
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShiftSwapRequest' }
+      responses:
+        '201':
+          description: Swap request created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShiftSwap' }
+
+  /api/leave/types:
+    get:
+      tags: ["Leave (Mobile)"]
+      summary: Available leave types
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Types
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LeaveType' }
+  /api/leave/balance:
+    get:
+      tags: ["Leave (Mobile)"]
+      summary: Current leave balance
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Balance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveBalance' }
+  /api/leave/request:
+    post:
+      tags: ["Leave (Mobile)"]
+      summary: Submit leave request (triggers workflow)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaveRequestCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveRequest' }
+  /api/leave/requests:
+    get:
+      tags: ["Leave (Mobile)"]
+      summary: My leave requests with approval status
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LeaveRequest' }
+  /api/leave/request/{id}:
+    put:
+      tags: ["Leave (Mobile)"]
+      summary: Update leave request
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LeaveRequestUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveRequest' }
+    delete:
+      tags: ["Leave (Mobile)"]
+      summary: Cancel leave request
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '204':
+          description: Cancelled
+  /api/leave/calendar:
+    get:
+      tags: ["Leave (Mobile)"]
+      summary: Leave calendar view
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Calendar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveCalendar' }
+  /api/leave/approval-status/{id}:
+    get:
+      tags: ["Leave (Mobile)"]
+      summary: Detailed approval status
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalTrail' }
+
+  /api/payslip/current:
+    get:
+      tags: ["Payroll (Mobile)"]
+      summary: Current month payslip
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Payslip
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Payslip' }
+  /api/payslip/history:
+    get:
+      tags: ["Payroll (Mobile)"]
+      summary: Historical payslips
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Payslip' }
+  /api/payslip/{id}/download:
+    get:
+      tags: ["Payroll (Mobile)"]
+      summary: Download PDF payslip
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+  /api/salary/components:
+    get:
+      tags: ["Payroll (Mobile)"]
+      summary: Salary component breakdown
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Components
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SalaryComponent' }
+  /api/tax/summary/{year}:
+    get:
+      tags: ["Payroll (Mobile)"]
+      summary: Annual tax summary
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: year
+          in: path
+          required: true
+          schema: { type: integer, minimum: 2000 }
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaxSummary' }
+
+  /api/overtime/request:
+    post:
+      tags: ["Overtime (Mobile)"]
+      summary: Submit overtime request
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OvertimeRequestCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OvertimeRequest' }
+  /api/overtime/requests:
+    get:
+      tags: ["Overtime (Mobile)"]
+      summary: My overtime requests
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OvertimeRequest' }
+  /api/overtime/summary:
+    get:
+      tags: ["Overtime (Mobile)"]
+      summary: Overtime summary
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OvertimeSummary' }
+  /api/overtime/approval-status/{id}:
+    get:
+      tags: ["Overtime (Mobile)"]
+      summary: Overtime approval status
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalTrail' }
+
+  /api/my-approvals/pending:
+    get:
+      tags: ["My Approvals (Mobile)"]
+      summary: Requests pending my approval
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/my-approvals/history:
+    get:
+      tags: ["My Approvals (Mobile)"]
+      summary: My approval history
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: List
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ApprovalItem' }
+  /api/my-approvals/{id}/action:
+    post:
+      tags: ["My Approvals (Mobile)"]
+      summary: Approve/reject from mobile
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MobileApprovalAction' }
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApprovalItem' }
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: Get notifications
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+  /api/notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark as read
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '204':
+          description: Updated
+  /api/notifications/register-device:
+    post:
+      tags: [Notifications]
+      summary: Register for push notifications
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PushRegister' }
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDevice' }
+  /api/notifications/preferences:
+    put:
+      tags: [Notifications]
+      summary: Update notification preferences
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotificationPreferences' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferences' }
+
+  /api/attendance/rfid/check-in:
+    post:
+      tags: ["Arduino · RFID"]
+      summary: RFID check-in with encryption
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RfidCheck' }
+      responses:
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/attendance/rfid/check-out:
+    post:
+      tags: ["Arduino · RFID"]
+    summary: RFID check-out
+    security: [{ deviceToken: [] }]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/RfidCheck' }
+    responses:
+      '201':
+        description: Recorded
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttendanceRecord' }
+
+  /api/rfid/validate:
+    post:
+      tags: ["Arduino · RFID"]
+      summary: Validate RFID card
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uid: { type: string }
+              required: [uid]
+      responses:
+        '200':
+          description: Valid/invalid with employee link
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RfidValidation' }
+  /api/rfid/register:
+    post:
+      tags: ["Arduino · RFID"]
+      summary: Register new RFID card
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                uid: { type: string }
+                employee_id: { type: string }
+              required: [uid, employee_id]
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RfidCard' }
+
+  /api/attendance/fingerprint/check-in:
+    post:
+      tags: ["Arduino · Fingerprint"]
+      summary: Fingerprint check-in
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FingerprintCheck' }
+      responses:
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/attendance/fingerprint/check-out:
+    post:
+      tags: ["Arduino · Fingerprint"]
+      summary: Fingerprint check-out
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FingerprintCheck' }
+      responses:
+        '201':
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/fingerprint/enroll:
+    post:
+      tags: ["Arduino · Fingerprint"]
+      summary: Enroll new fingerprint
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FingerprintEnroll' }
+      responses:
+        '201':
+          description: Enrolled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FingerprintTemplate' }
+  /api/fingerprint/verify:
+    post:
+      tags: ["Arduino · Fingerprint"]
+      summary: Verify fingerprint template
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FingerprintVerify' }
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FingerprintVerifyResult' }
+
+  /api/device/status:
+    post:
+      tags: ["Arduino · Device Ops"]
+      summary: Device status update
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceStatus' }
+      responses:
+        '204':
+          description: Accepted
+  /api/device/error:
+    post:
+      tags: ["Arduino · Device Ops"]
+      summary: Report device error
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceError' }
+      responses:
+        '204':
+          description: Logged
+  /api/device/sync:
+    post:
+      tags: ["Arduino · Device Ops"]
+      summary: Sync offline buffered data
+      security: [{ deviceToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                records:
+                  type: array
+                  items: { $ref: '#/components/schemas/AttendanceRecord' }
+              required: [records]
+      responses:
+        '200':
+          description: Sync results
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SyncResult' }
+  /api/device/firmware/check:
+    get:
+      tags: ["Arduino · Device Ops"]
+      summary: Check firmware updates
+      security: [{ deviceToken: [] }]
+      responses:
+        '200':
+          description: Firmware info
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FirmwareInfo' }
+  /api/device/time/sync:
+    get:
+      tags: ["Arduino · Device Ops"]
+      summary: Sync device time
+      security: [{ deviceToken: [] }]
+      responses:
+        '200':
+          description: Time payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  iso8601: { type: string, format: date-time }
+                  timezone: { type: string }
+
+  /api/device/employees:
+    get:
+      tags: ["Arduino · Device Employees"]
+      summary: Get authorized employees
+      security: [{ deviceToken: [] }]
+      responses:
+        '200':
+          description: Employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeviceEmployee' }
+  /api/device/employee/{id}/verify:
+    get:
+      tags: ["Arduino · Device Employees"]
+      summary: Verify employee for device
+      security: [{ deviceToken: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EmployeeVerifyResult' }
+  /api/device/employee/blacklist:
+    post:
+      tags: ["Arduino · Device Employees"]
+      summary: Add to device blacklist
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                employee_id: { type: string }
+                reason: { type: string }
+              required: [employee_id]
+      responses:
+        '201':
+          description: Blacklisted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BlacklistEntry' }
+
+  /api/admin/dashboard/realtime:
+    get:
+      tags: ["Admin · Dashboard & Analytics"]
+      summary: Real-time dashboard data
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: KPIs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RealtimeDashboard' }
+  /api/admin/analytics/attendance:
+    get:
+      tags: ["Admin · Dashboard & Analytics"]
+      summary: Attendance analytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Aggregates
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceAnalytics' }
+  /api/admin/analytics/payroll:
+    get:
+      tags: ["Admin · Dashboard & Analytics"]
+      summary: Payroll analytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Aggregates
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PayrollAnalytics' }
+  /api/admin/analytics/performance:
+    get:
+      tags: ["Admin · Dashboard & Analytics"]
+      summary: System performance metrics
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemPerformance' }
+  /api/admin/reports/generate:
+    get:
+      tags: ["Admin · Dashboard & Analytics"]
+      summary: Generate custom reports
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Report job created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportJob' }
+
+  /api/admin/employees:
+    get:
+      tags: ["Admin · Employees"]
+      summary: List employees with filters
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Employee' }
+    post:
+      tags: ["Admin · Employees"]
+      summary: Create new employee
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+  /api/admin/employees/{id}:
+    get:
+      tags: ["Admin · Employees"]
+      summary: Get employee details
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: Employee
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+    put:
+      tags: ["Admin · Employees"]
+      summary: Update employee
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmployeeUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Employee' }
+    delete:
+      tags: ["Admin · Employees"]
+      summary: Deactivate employee
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '204':
+          description: Deactivated
+  /api/admin/employees/bulk-import:
+    post:
+      tags: ["Admin · Employees"]
+      summary: Bulk import employees
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '202':
+          description: Import job started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportJob' }
+  /api/admin/employees/export:
+    get:
+      tags: ["Admin · Employees"]
+      summary: Export employee data
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Export file
+          content:
+            text/csv:
+              schema: { type: string, format: binary }
+
+  /api/admin/attendance/logs:
+    get:
+      tags: ["Admin · Attendance"]
+      summary: Attendance logs with filters
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+        - name: employee_id
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/admin/attendance/anomalies:
+    get:
+      tags: ["Admin · Attendance"]
+      summary: Detect attendance anomalies
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Anomalies
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AttendanceAnomaly' }
+  /api/admin/attendance/manual:
+    post:
+      tags: ["Admin · Attendance"]
+      summary: Manual attendance entry
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AttendanceManualCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/admin/attendance/{id}/approve:
+    put:
+      tags: ["Admin · Attendance"]
+      summary: Approve manual attendance
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttendanceRecord' }
+  /api/admin/attendance/reports:
+    get:
+      tags: ["Admin · Attendance"]
+      summary: Attendance reports
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Report list
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReportJob' }
+
+  /api/admin/devices:
+    get:
+      tags: ["Admin · Devices"]
+      summary: List all devices
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Device' }
+    post:
+      tags: ["Admin · Devices"]
+      summary: Add new device
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceRegisterRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Device' }
+  /api/admin/devices/{id}:
+    put:
+      tags: ["Admin · Devices"]
+      summary: Update device
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeviceUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Device' }
+    delete:
+      tags: ["Admin · Devices"]
+      summary: Remove device
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      responses:
+        '204':
+          description: Removed
+  /api/admin/devices/health:
+    get:
+      tags: ["Admin · Devices"]
+      summary: Device health status
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Health
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DeviceHealth' }
+  /api/admin/devices/reboot:
+    post:
+      tags: ["Admin · Devices"]
+      summary: Remote device reboot
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_ids:
+                  type: array
+                  items: { type: string }
+              required: [device_ids]
+      responses:
+        '202':
+          description: Reboot queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkActionJob' }
+
+  /api/admin/leave/requests:
+    get:
+      tags: ["Admin · Leave"]
+      summary: All leave requests
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LeaveRequest' }
+  /api/admin/leave/pending-approvals:
+    get:
+      tags: ["Admin · Leave"]
+      summary: Pending approval overview
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Pending overview
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PendingApprovalsOverview' }
+  /api/admin/leave/{id}/override:
+    put:
+      tags: ["Admin · Leave"]
+      summary: Admin override approval
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/id' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action: { type: string, enum: [approve, reject] }
+                reason: { type: string }
+              required: [action]
+      responses:
+        '200':
+          description: Overridden
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveRequest' }
+  /api/admin/leave/calendar:
+    get:
+      tags: ["Admin · Leave"]
+      summary: Organization leave calendar
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Calendar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LeaveCalendar' }
+  /api/admin/leave/bulk-allocate:
+    post:
+      tags: ["Admin · Leave"]
+      summary: Bulk leave allocation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkLeaveAllocation' }
+      responses:
+        '202':
+          description: Allocation job created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BulkActionJob' }
+  /api/admin/leave/approval-metrics:
+    get:
+      tags: ["Admin · Leave"]
+      summary: Approval performance metrics
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PerformanceMetrics' }
+
+  /api/admin/payroll/generate:
+    post:
+      tags: ["Admin · Payroll"]
+      summary: Generate payroll
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayrollGenerate' }
+      responses:
+        '202':
+          description: Generation started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PayrollPeriod' }
+  /api/admin/payroll/periods:
+    get:
+      tags: ["Admin · Payroll"]
+      summary: Payroll periods
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Periods
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PayrollPeriod' }
+  /api/admin/payroll/process:
+    post:
+      tags: ["Admin · Payroll"]
+      summary: Process payroll
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayrollProcess' }
+      responses:
+        '202':
+          description: Processing started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportJob' }
+  /api/admin/payroll/reports:
+    get:
+      tags: ["Admin · Payroll"]
+      summary: Payroll reports
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ReportJob' }
+  /api/admin/payroll/components:
+    post:
+      tags: ["Admin · Payroll"]
+      summary: Manage salary components (create/update batch)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/SalaryComponent' }
+      responses:
+        '200':
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SalaryComponent' }
+
+  /api/admin/settings:
+    get:
+      tags: ["Admin · System"]
+      summary: System settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemSettings' }
+    put:
+      tags: ["Admin · System"]
+      summary: Update settings
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SystemSettings' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemSettings' }
+  /api/admin/audit-logs:
+    get:
+      tags: ["Admin · System"]
+      summary: Audit trail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+      responses:
+        '200':
+          description: Logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AuditLog' }
+  /api/admin/security/events:
+    get:
+      tags: ["Admin · System"]
+      summary: Security events
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Events
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/SecurityEvent' }
+  /api/admin/backup/create:
+    post:
+      tags: ["Admin · System"]
+      summary: Create system backup
+      security: [{ bearerAuth: [] }]
+      responses:
+        '202':
+          description: Backup job created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReportJob' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    deviceToken:
+      type: apiKey
+      in: header
+      name: X-Device-Token
+  parameters:
+    page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    per_page:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string }
+    deviceId:
+      name: device_id
+      in: path
+      required: true
+      schema: { type: string }
+    lat:
+      name: lat
+      in: query
+      required: true
+      schema: { type: number }
+    lng:
+      name: lng
+      in: query
+      required: true
+      schema: { type: number }
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+      required: [code, message]
+    MessageResponse:
+      type: object
+      properties:
+        message: { type: string }
+      required: [message]
+
+    AuthTokens:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        token_type: { type: string, default: Bearer }
+        expires_in: { type: integer }
+      required: [access_token, refresh_token]
+    LoginRequest:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+      required: [email, password]
+    BiometricLoginRequest:
+      type: object
+      properties:
+        device_id: { type: string }
+        biometric_assertion: { type: string, description: 'FIDO/WebAuthn or vendor token' }
+      required: [device_id, biometric_assertion]
+    TwoFactorSetupResponse:
+      type: object
+      properties:
+        otpauth_url: { type: string }
+        secret: { type: string }
+        qr_svg: { type: string }
+    TwoFactorVerifyRequest:
+      type: object
+      properties:
+        otp: { type: string, pattern: '^[0-9]{6}$' }
+      required: [otp]
+    Profile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+        avatar_url: { type: string }
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        avatar_url: { type: string }
+
+    Device:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        model: { type: string }
+        firmware_version: { type: string }
+        last_seen_at: { type: string, format: date-time }
+        status: { type: string, enum: [online, offline, error] }
+    DeviceRegisterRequest:
+      type: object
+      properties:
+        name: { type: string }
+        model: { type: string }
+        serial_number: { type: string }
+        location_id: { type: string }
+      required: [name, model, serial_number]
+    DeviceAuthRequest:
+      type: object
+      properties:
+        serial_number: { type: string }
+        secret: { type: string }
+      required: [serial_number, secret]
+    DeviceAuthResponse:
+      type: object
+      properties:
+        device_id: { type: string }
+        token: { type: string }
+        expires_in: { type: integer }
+    DeviceHeartbeat:
+      type: object
+      properties:
+        temperature_c: { type: number }
+        voltage_v: { type: number }
+        uptime_s: { type: integer }
+        free_mem_kb: { type: integer }
+        ts: { type: string, format: date-time }
+    DeviceConfig:
+      type: object
+      properties:
+        timezone: { type: string }
+        retry_interval_s: { type: integer }
+        geofence_id: { type: string }
+        capture_photo: { type: boolean }
+    DeviceConfigUpdate:
+      allOf:
+        - $ref: '#/components/schemas/DeviceConfig'
+    DeviceUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        firmware_version: { type: string }
+
+    Workflow:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        entity: { type: string, enum: [leave, overtime, manual_attendance] }
+        is_active: { type: boolean }
+    WorkflowCreate:
+      type: object
+      properties:
+        name: { type: string }
+        entity: { type: string }
+        rules: { type: object }
+      required: [name, entity]
+    WorkflowUpdate:
+      allOf: [ { $ref: '#/components/schemas/WorkflowCreate' } ]
+    WorkflowStep:
+      type: object
+      properties:
+        id: { type: string }
+        workflow_id: { type: string }
+        order: { type: integer }
+        role_required: { type: string }
+        threshold_amount: { type: number }
+    WorkflowStepCreate:
+      type: object
+      properties:
+        order: { type: integer }
+        role_required: { type: string }
+        threshold_amount: { type: number }
+      required: [order, role_required]
+    WorkflowStepUpdate:
+      allOf: [ { $ref: '#/components/schemas/WorkflowStepCreate' } ]
+    WorkflowTestResult:
+      type: object
+      properties:
+        valid: { type: boolean }
+        messages:
+          type: array
+          items: { type: string }
+
+    ApprovalItem:
+      type: object
+      properties:
+        id: { type: string }
+        entity: { type: string }
+        entity_id: { type: string }
+        status: { type: string, enum: [pending, approved, rejected, delegated] }
+        requested_by: { $ref: '#/components/schemas/Employee' }
+        current_step: { type: integer }
+        created_at: { type: string, format: date-time }
+    ApprovalActionRequest:
+      type: object
+      properties:
+        comment: { type: string }
+    DelegateRequest:
+      type: object
+      properties:
+        delegate_to_user_id: { type: string }
+        reason: { type: string }
+      required: [delegate_to_user_id]
+    BulkApprovalAction:
+      type: object
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              comment: { type: string }
+            required: [id]
+      required: [action, items]
+    BulkApprovalResult:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        message: { type: string }
+
+    Delegation:
+      type: object
+      properties:
+        id: { type: string }
+        from_user_id: { type: string }
+        to_user_id: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        scopes:
+          type: array
+          items: { type: string }
+    DelegationCreate:
+      type: object
+      properties:
+        to_user_id: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        scopes:
+          type: array
+          items: { type: string }
+      required: [to_user_id, start_at, end_at]
+    DelegationUpdate:
+      allOf: [ { $ref: '#/components/schemas/DelegationCreate' } ]
+
+    ApprovalAnalytics:
+      type: object
+      properties:
+        avg_time_to_approve_h: { type: number }
+        total_pending: { type: integer }
+        by_step:
+          type: array
+          items:
+            type: object
+            properties:
+              step: { type: integer }
+              count: { type: integer }
+    Bottleneck:
+      type: object
+      properties:
+        step: { type: integer }
+        avg_wait_h: { type: number }
+        backlog: { type: integer }
+    PerformanceMetrics:
+      type: object
+      properties:
+        mttr_h: { type: number }
+        throughput_per_day: { type: number }
+
+    GpsCheckInForm:
+      type: object
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        accuracy_m: { type: number }
+        photo: { type: string, format: binary }
+        note: { type: string }
+      required: [lat, lng, photo]
+    GpsCheckOutRequest:
+      type: object
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        accuracy_m: { type: number }
+        note: { type: string }
+    OfflineAttendanceSync:
+      type: object
+      properties:
+        records:
+          type: array
+          items: { $ref: '#/components/schemas/AttendanceRecord' }
+      required: [records]
+    AttendanceRecord:
+      type: object
+      properties:
+        id: { type: string }
+        employee_id: { type: string }
+        type: { type: string, enum: [check_in, check_out] }
+        method: { type: string, enum: [gps, rfid, fingerprint, manual] }
+        ts: { type: string, format: date-time }
+        lat: { type: number }
+        lng: { type: number }
+        photo_url: { type: string }
+        device_id: { type: string }
+        approved: { type: boolean }
+    AttendanceStatus:
+      type: object
+      properties:
+        on_shift: { type: boolean }
+        last_check_in_at: { type: string, format: date-time }
+        last_check_out_at: { type: string, format: date-time }
+        current_duration_min: { type: integer }
+    AttendanceSummary:
+      type: object
+      properties:
+        total_days: { type: integer }
+        present_days: { type: integer }
+        late_count: { type: integer }
+        overtime_hours: { type: number }
+
+    GeofenceCheckRequest:
+      type: object
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+      required: [lat, lng]
+    GeofenceCheckResult:
+      type: object
+      properties:
+        inside: { type: boolean }
+        geofence_id: { type: string }
+
+    OfficeLocation:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        radius_m: { type: integer }
+    LocationUpdate:
+      type: object
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+        ts: { type: string, format: date-time }
+      required: [lat, lng]
+
+    Shift:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        location_id: { type: string }
+    ShiftCalendar:
+      type: object
+      properties:
+        month: { type: string }
+        shifts:
+          type: array
+          items: { $ref: '#/components/schemas/Shift' }
+    ShiftSwapRequest:
+      type: object
+      properties:
+        from_shift_id: { type: string }
+        to_shift_id: { type: string }
+        reason: { type: string }
+      required: [from_shift_id, to_shift_id]
+    ShiftSwap:
+      type: object
+      properties:
+        id: { type: string }
+        requester_id: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+
+    LeaveType:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        requires_attachment: { type: boolean }
+    LeaveBalance:
+      type: object
+      properties:
+        type_id: { type: string }
+        remaining_days: { type: number }
+    LeaveRequestCreate:
+      type: object
+      properties:
+        type_id: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        reason: { type: string }
+        attachment_url: { type: string }
+      required: [type_id, start_date, end_date]
+    LeaveRequestUpdate:
+      allOf: [ { $ref: '#/components/schemas/LeaveRequestCreate' } ]
+    LeaveRequest:
+      type: object
+      properties:
+        id: { type: string }
+        type: { $ref: '#/components/schemas/LeaveType' }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        status: { type: string, enum: [pending, approved, rejected, cancelled] }
+        approval_trail: { $ref: '#/components/schemas/ApprovalTrail' }
+    LeaveCalendar:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              count: { type: integer }
+    ApprovalTrail:
+      type: object
+      properties:
+        steps:
+          type: array
+          items:
+            type: object
+            properties:
+              step: { type: integer }
+              approver: { type: string }
+              status: { type: string }
+              ts: { type: string, format: date-time }
+
+    Payslip:
+      type: object
+      properties:
+        id: { type: string }
+        period: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }
+        gross: { type: number }
+        net: { type: number }
+        components:
+          type: array
+          items: { $ref: '#/components/schemas/SalaryComponent' }
+    SalaryComponent:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        amount: { type: number }
+        type: { type: string, enum: [earning, deduction] }
+    TaxSummary:
+      type: object
+      properties:
+        year: { type: integer }
+        taxable_income: { type: number }
+        tax_paid: { type: number }
+
+    OvertimeRequestCreate:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        hours: { type: number }
+        reason: { type: string }
+      required: [date, hours]
+    OvertimeRequest:
+      type: object
+      properties:
+        id: { type: string }
+        date: { type: string, format: date }
+        hours: { type: number }
+        status: { type: string, enum: [pending, approved, rejected] }
+        approval_trail: { $ref: '#/components/schemas/ApprovalTrail' }
+    OvertimeSummary:
+      type: object
+      properties:
+        total_hours: { type: number }
+        month_to_date_hours: { type: number }
+
+    MobileApprovalAction:
+      type: object
+      properties:
+        action: { type: string, enum: [approve, reject] }
+        comment: { type: string }
+      required: [action]
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        body: { type: string }
+        read_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    PushRegister:
+      type: object
+      properties:
+        device_token: { type: string }
+        platform: { type: string, enum: [ios, android, web] }
+      required: [device_token, platform]
+    PushDevice:
+      type: object
+      properties:
+        id: { type: string }
+        platform: { type: string }
+        device_token: { type: string }
+    NotificationPreferences:
+      type: object
+      properties:
+        channels:
+          type: array
+          items: { type: string, enum: [push, email, sms] }
+        quiet_hours:
+          type: object
+          properties:
+            start: { type: string, pattern: '^[0-9]{2}:[0-9]{2}$' }
+            end: { type: string, pattern: '^[0-9]{2}:[0-9]{2}$' }
+
+    RfidCheck:
+      type: object
+      properties:
+        uid: { type: string }
+        ts: { type: string, format: date-time }
+        nonce: { type: string }
+        signature: { type: string, description: 'HMAC over payload with device secret' }
+      required: [uid, ts, nonce, signature]
+    RfidValidation:
+      type: object
+      properties:
+        valid: { type: boolean }
+        employee_id: { type: string }
+        blocked: { type: boolean }
+    RfidCard:
+      type: object
+      properties:
+        uid: { type: string }
+        employee_id: { type: string }
+        registered_at: { type: string, format: date-time }
+
+    FingerprintCheck:
+      type: object
+      properties:
+        employee_id: { type: string }
+        match_score: { type: number }
+        ts: { type: string, format: date-time }
+      required: [employee_id, match_score]
+    FingerprintEnroll:
+      type: object
+      properties:
+        employee_id: { type: string }
+        template: { type: string, description: 'Base64 template' }
+      required: [employee_id, template]
+    FingerprintTemplate:
+      type: object
+      properties:
+        id: { type: string }
+        employee_id: { type: string }
+        created_at: { type: string, format: date-time }
+    FingerprintVerify:
+      type: object
+      properties:
+        template: { type: string }
+      required: [template]
+    FingerprintVerifyResult:
+      type: object
+      properties:
+        matched: { type: boolean }
+        employee_id: { type: string }
+        score: { type: number }
+
+    DeviceStatus:
+      type: object
+      properties:
+        ts: { type: string, format: date-time }
+        status: { type: string, enum: [ok, warn, error] }
+        metrics:
+          type: object
+          additionalProperties: { type: number }
+    DeviceError:
+      type: object
+      properties:
+        ts: { type: string, format: date-time }
+        code: { type: string }
+        message: { type: string }
+        detail: { type: string }
+
+    DeviceHealth:
+      type: object
+      properties:
+        device_id: { type: string }
+        last_seen_at: { type: string, format: date-time }
+        temperature_c: { type: number }
+        voltage_v: { type: number }
+        status: { type: string }
+
+    DeviceEmployee:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        rfid_uid: { type: string }
+        fingerprint_template_id: { type: string }
+
+    EmployeeVerifyResult:
+      type: object
+      properties:
+        allowed: { type: boolean }
+        reason: { type: string }
+
+    BlacklistEntry:
+      type: object
+      properties:
+        id: { type: string }
+        employee_id: { type: string }
+        reason: { type: string }
+        created_at: { type: string, format: date-time }
+
+    RealtimeDashboard:
+      type: object
+      properties:
+        active_employees: { type: integer }
+        online_devices: { type: integer }
+        attendance_today: { type: integer }
+    AttendanceAnalytics:
+      type: object
+      properties:
+        by_location:
+          type: array
+          items:
+            type: object
+            properties:
+              location_id: { type: string }
+              present: { type: integer }
+              absent: { type: integer }
+    PayrollAnalytics:
+      type: object
+      properties:
+        total_payroll: { type: number }
+        average_salary: { type: number }
+    SystemPerformance:
+      type: object
+      properties:
+        req_per_min: { type: number }
+        error_rate_pct: { type: number }
+        avg_latency_ms: { type: number }
+    ReportJob:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [queued, running, completed, failed] }
+        download_url: { type: string }
+
+    Employee:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        position: { type: string }
+        department: { type: string }
+        manager_id: { type: string }
+    EmployeeCreate:
+      allOf: [ { $ref: '#/components/schemas/Employee' } ]
+    EmployeeUpdate:
+      allOf: [ { $ref: '#/components/schemas/Employee' } ]
+
+    AttendanceAnomaly:
+      type: object
+      properties:
+        id: { type: string }
+        employee_id: { type: string }
+        type: { type: string, enum: [missing_checkout, early_leave, late_checkin] }
+        date: { type: string, format: date }
+
+    AttendanceManualCreate:
+      type: object
+      properties:
+        employee_id: { type: string }
+        type: { type: string, enum: [check_in, check_out] }
+        ts: { type: string, format: date-time }
+        note: { type: string }
+      required: [employee_id, type, ts]
+
+    PendingApprovalsOverview:
+      type: object
+      properties:
+        total: { type: integer }
+        by_type:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              count: { type: integer }
+
+    BulkLeaveAllocation:
+      type: object
+      properties:
+        allocations:
+          type: array
+          items:
+            type: object
+            properties:
+              employee_id: { type: string }
+              days: { type: number }
+              type_id: { type: string }
+            required: [employee_id, days, type_id]
+
+    PayrollGenerate:
+      type: object
+      properties:
+        period: { type: string, pattern: '^[0-9]{4}-[0-9]{2}$' }
+      required: [period]
+    PayrollPeriod:
+      type: object
+      properties:
+        id: { type: string }
+        period: { type: string }
+        status: { type: string }
+
+    ImportJob:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        errors:
+          type: array
+          items: { type: string }
+
+    SystemSettings:
+      type: object
+      properties:
+        company_name: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        security:
+          type: object
+          properties:
+            password_min_length: { type: integer }
+            require_2fa: { type: boolean }
