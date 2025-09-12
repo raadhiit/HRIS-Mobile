@@ -11,14 +11,14 @@ export function useAttendanceCamera(token: string) {
   const takePhoto = async () => {
     setError(null);
     // minta izin kamera
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status } = await ImagePicker.getCameraPermissionsAsync();
     if (status !== "granted") {
       setError("Izin kamera ditolak.");
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
       quality: 0.7,
       cameraType: ImagePicker.CameraType.front, // selfie
       allowsEditing: false,

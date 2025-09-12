@@ -9,6 +9,9 @@ export const mockHome: HomeDTO = {
   activities: [
     { title: "Masuk", subtitle: "Hari ini, 08:00 WIB", iconName: "access-time" },
   ],
+  history: [
+    { date: "Senin, 1 September 2025", status: "approved" },
+  ],
 };
 
 export type MockUser = {
