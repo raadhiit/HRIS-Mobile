@@ -1,186 +1,4 @@
-// // API/auth.ts
-// import * as SecureStore from "expo-secure-store";
-// import { mockUser, makeToken, mockHome } from "./mocks"; 
-
-// // Ganti via .env (EXPO_PUBLIC_API_URL) atau biarkan default
-// const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://10.0.2.2:8000";
-// const USE_MOCKS = process.env.EXPO_PUBLIC_USE_MOCKS === "1";
-
-// const ACCESS_KEY = "auth.access_token";
-// const REFRESH_KEY = "auth.refresh_token";
-
-// type Json = Record<string, any>;
-
-// // ========= Utilities =========
-// async function getAccessToken() {
-//   return SecureStore.getItemAsync(ACCESS_KEY);
-// }
-// async function getRefreshToken() {
-//   return SecureStore.getItemAsync(REFRESH_KEY);
-// }
-// async function setTokens(access: string, refresh?: string) {
-//   await SecureStore.setItemAsync(ACCESS_KEY, access);
-//   if (refresh) await SecureStore.setItemAsync(REFRESH_KEY, refresh);
-// }
-// export async function clearSession() {
-//   await Promise.all([
-//     SecureStore.deleteItemAsync(ACCESS_KEY),
-//     SecureStore.deleteItemAsync(REFRESH_KEY),
-//   ]);
-// }
-
-// function jsonHeaders() {
-//   return { Accept: "application/json", "Content-Type": "application/json" };
-// }
-
-// async function http<T = any>(
-//   path: string,
-//   opts: RequestInit & { auth?: boolean } = {}
-// ): Promise<T> {
-//   const url = path.startsWith("http") ? path : `${BASE_URL}${path}`;
-//   const headers: Record<string, string> = {
-//     ...jsonHeaders(),
-//     ...(opts.headers as any),
-//   };
-
-//   // inject Bearer token jika perlu
-//   if (opts.auth) {
-//     const token = await getAccessToken();
-//     if (token) headers["Authorization"] = `Bearer ${token}`;
-//   }
-
-//   const res = await fetch(url, { ...opts, headers });
-
-//   if (res.ok) {
-//     if (res.status === 204) return undefined as unknown as T;
-//     const ct = res.headers.get("content-type") || "";
-//     return ct.includes("application/json")
-//       ? ((await res.json()) as T)
-//       : ((await res.text()) as any);
-//   }
-
-//   // 401 → coba refresh 1x lalu retry
-//   if (res.status === 401 && opts.auth) {
-//     const refreshed = await tryRefresh();
-//     if (refreshed) {
-//       return http<T>(path, opts);
-//     }
-//   }
-
-//   let message = `HTTP ${res.status}`;
-//   try {
-//     const body = await res.json();
-//     message = body?.message || message;
-//   } catch {}
-//   throw new Error(message);
-// }
-
-// async function tryRefresh(): Promise<boolean> {
-//   const refresh = await getRefreshToken();
-//   if (!refresh) return false;
-
-//   const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
-//     method: "POST",
-//     headers: jsonHeaders(),
-//     body: JSON.stringify({ refresh_token: refresh }),
-//   });
-//   if (!res.ok) {
-//     await clearSession();
-//     return false;
-//   }
-//   const data = (await res.json()) as {
-//     access_token: string;
-//     refresh_token?: string;
-//   };
-//   await setTokens(data.access_token, data.refresh_token);
-//   return true;
-// }
-
-// // ========= PUBLIC API (AUTH) =========
-
-// /** Login pakai email atau username (pilih salah satu) */
-// export async function login(payload: {
-//   email?: string;
-//   password: string;
-// }): Promise<{ twoFactorRequired: boolean; method?: "totp" | "sms" | "email" }> {
-//   const res = await http<Json>("/api/auth/login", {
-//     method: "POST",
-//     body: JSON.stringify(payload),
-//     // login tidak perlu Bearer
-//   });
-
-//   if (res?.two_factor_required) {
-//     return { twoFactorRequired: true, method: res.method };
-//   }
-
-//   if (res?.access_token) {
-//     await setTokens(res.access_token, res.refresh_token);
-//     return { twoFactorRequired: false };
-//   }
-
-//   throw new Error("Login response tidak valid");
-// }
-
-// /** Verifikasi OTP 2FA (mis. TOTP 6 digit) */
-// export function verifyTwoFactor(otp: string) {
-//   return http<{ message: string }>("/api/auth/two-factor/verify", {
-//     method: "POST",
-//     body: JSON.stringify({ otp }),
-//     auth: true,
-//   });
-// }
-
-// /** (Opsional) Enable 2FA, server biasanya balikan otpauth:// dan secret */
-// export function enableTwoFactor() {
-//   return http<{ otpauth_url: string; secret: string; qr_svg?: string }>(
-//     "/api/auth/two-factor/enable",
-//     { method: "POST", auth: true }
-//   );
-// }
-
-// /** Biometric login (kalau backend menyediakan) */
-// export function biometricLogin(payload: {
-//   device_id: string;
-//   biometric_assertion: string;
-// }) {
-//   return http<{ access_token: string; refresh_token?: string }>(
-//     "/api/auth/biometric-login",
-//     {
-//       method: "POST",
-//       body: JSON.stringify(payload),
-//       // tidak perlu Bearer
-//     }
-//   ).then(async (res) => {
-//     if (res?.access_token) await setTokens(res.access_token, res.refresh_token);
-//     return res;
-//   });
-// }
-
-// /** Logout + hapus token lokal */
-// export async function logout() {
-//   try {
-//     await http<void>("/api/auth/logout", { method: "POST", auth: true });
-//   } finally {
-//     await clearSession();
-//   }
-// }
-
-// /** Ambil profil user yang login */
-// export function me<T = Json>() {
-//   return http<T>("/api/auth/profile", { auth: true });
-// }
-
-// /** Update profil user */
-// export function updateProfile<T = Json>(body: Partial<T>) {
-//   return http<T>("/api/auth/profile", {
-//     method: "PUT",
-//     body: JSON.stringify(body),
-//     auth: true,
-//   });
-// }
-
-
-import * as SecureStore from "expo-secure-store";
+import { Secure } from "../storage/secure";
 import { makeToken, mockHome, mockUser } from "./mocks"; // <— ADD
 import { HomeDTO } from "./types";
 
@@ -194,17 +12,19 @@ const REFRESH_KEY = "auth.refresh_token";
 
 type Json = Record<string, any>;
 
-async function getAccessToken() { return SecureStore.getItemAsync(ACCESS_KEY); }
-async function getRefreshToken() { return SecureStore.getItemAsync(REFRESH_KEY); }
+async function getAccessToken() { return Secure.getItemAsync(ACCESS_KEY); }
+async function getRefreshToken() { return Secure.getItemAsync(REFRESH_KEY); }
+
 async function setTokens(access: string, refresh?: string) {
-  await SecureStore.setItemAsync(ACCESS_KEY, access);
-  if (refresh) await SecureStore.setItemAsync(REFRESH_KEY, refresh);
+  await Secure.setItemAsync(ACCESS_KEY, access);
+  if (refresh) await Secure.setItemAsync(REFRESH_KEY, refresh);
 }
 export async function clearSession() {
   await Promise.all([
-    SecureStore.deleteItemAsync(ACCESS_KEY),
-    SecureStore.deleteItemAsync(REFRESH_KEY),
+    Secure.deleteItemAsync(ACCESS_KEY),
+    Secure.deleteItemAsync(REFRESH_KEY),
   ]);
+
 }
 
 function jsonHeaders() {
