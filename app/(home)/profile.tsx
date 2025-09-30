@@ -1,27 +1,61 @@
-import { useAuth } from "@/shared/context/AuthProvider";
+// app/(home)/profile.tsx
+import React, { useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useRouter, Redirect } from "expo-router";
+import Toast from "react-native-toast-message";
+
 import { Button } from "@/shared/ui/button";
 import ConfirmSheet from "@/shared/ui/confirmSheet";
-import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  View
-} from "react-native";
+import { useEmployeeProfile } from "@/shared/hooks/userEmployees";
+import { useAuth } from "@/shared/providers/AuthProvider";
 
 export default function ProfileScreen() {
-  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  const { data: emp, loading, ready, loggedIn, refresh } = useEmployeeProfile();
+  const { logout } = useAuth();
+
   const doLogout = async () => {
-    await logout();
-    router.replace("/(auth)/login" as any);
+    try {
+      await logout();
+      Toast.show({ 
+        type: "success", 
+        text1: "Logout berhasil",
+        text1Style: { fontFamily: "Poppins_600SemiBold", fontSize: 14 }, 
+      });
+    } finally {
+      // biarkan AuthGate mengarahkan, tapi boleh juga langsung
+      // router.replace("/(auth)/login");
+    }
   };
+
+  const doRefresh = async () => {
+    try {
+      await refresh();
+      Toast.show({ 
+        type: "success", 
+        text1: "Profil berhasil diperbarui",
+        text1Style: { fontFamily: "Poppins_600SemiBold", fontSize: 16 }, 
+      });
+    } finally {
+      setOpen(false);
+    }
+  }
+
+  if (!ready) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator />
+        <Text className="text-gray-500 mt-2">Menyiapkan data…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // ✅ Gunakan Redirect, bukan router.replace di render
+  if (!loggedIn) return <Redirect href="/(auth)/login" />;
 
   if (loading) {
     return (
@@ -32,28 +66,31 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!user) {
+  if (!emp) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center px-6">
         <MaterialIcons name="person-off" size={40} color="#6b7280" />
-        <Text className="text-lg font-semibold mt-3">Belum masuk</Text>
+        <Text className="text-lg font-semibold mt-3">Profil tidak tersedia</Text>
         <Text className="text-gray-500 mt-1 text-center">
-          Silakan login untuk melihat profil.
+          Silakan login kembali.
         </Text>
         <Button
           title="Ke Halaman Login"
           variant="primary"
           className="mt-4"
-          onPress={() => router.replace("/auth/login" as any)}
+          onPress={() => router.replace("/(auth)/login")}
         />
       </SafeAreaView>
     );
   }
 
+  const fullName =
+    emp.full_name || `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim();
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <View className="flex-1 bg-white">
       {/* Header */}
-      <View className="bg-emerald-600 px-5 pt-14 pb-6 rounded-b-3xl">
+      <View className="bg-emerald-600 px-5 pt-10 pb-6 rounded-b-3xl">
         <View className="flex-row items-center justify-between">
           <Text className="text-white text-xl font-semibold">Profile</Text>
           <Pressable
@@ -69,47 +106,48 @@ export default function ProfileScreen() {
         contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 20, paddingVertical: 16 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Card Profil Utama */}
         <View className="bg-white rounded-3xl p-5 shadow-lg border border-black/5">
           {/* Avatar */}
           <View className="items-center">
             <View className="h-24 w-24 rounded-full bg-emerald-600 items-center justify-center shadow-md">
-              {/* Jika suatu saat punya avatar_url, ganti ini jadi <Image /> */}
               <MaterialIcons name="person" size={56} color="#fff" />
             </View>
 
-            {/* Nama & Role */}
-            <Text className="text-2xl font-semibold mt-4">{user.name}</Text>
-            {user?.email ? (
-              <Text className="text-gray-500 mt-1">{user.email}</Text>
-            ) : null}
-            {/* Kalau punya role di profil, tampilkan — untuk sekarang ambil dari mockHome di tempat lain;
-                di sini kita contohkan "IT STAFF" kalau ada di user.role */}
-            {"role" in user ? (
-              // @ts-ignore (kalau tipe Profile belum punya role)
-              <Text className="text-emerald-700 font-medium mt-1 italic">
-                {/* @ts-ignore */}
-                {user.role}
+            <Text className="text-2xl font-semibold mt-4">{fullName}</Text>
+
+            {(emp.position?.name || emp.department?.name) ? (
+              <Text className="text-emerald-700 font-medium italic mt-1">
+                {[emp.position?.name, emp.department?.name].filter(Boolean).join(" • ")}
               </Text>
             ) : null}
           </View>
 
-          {/* Info grid (contoh, bisa kamu sesuaikan) */}
+          {/* Info grid */}
           <View className="mt-6 rounded-2xl border border-gray-100 overflow-hidden">
             <View className="flex-row">
               <View className="flex-1 p-4 bg-gray-50">
-                <Text className="text-xs uppercase tracking-wide text-gray-500">
-                  Nama
-                </Text>
-                <Text className="mt-1 text-gray-900">{user.name}</Text>
+                <Text className="text-xs uppercase tracking-wide text-gray-500">Kode Karyawan</Text>
+                <Text className="mt-1 text-gray-900">{emp.employee_code ?? "-"}</Text>
               </View>
               <View className="w-px bg-gray-100" />
               <View className="flex-1 p-4 bg-gray-50">
-                <Text className="text-xs uppercase tracking-wide text-gray-500">
-                  Email
-                </Text>
+                <Text className="text-xs uppercase tracking-wide text-gray-500">Tanggal Masuk</Text>
+                <Text className="mt-1 text-gray-900">{emp.hire_date ?? "-"}</Text>
+              </View>
+            </View>
+
+            <View className="h-px bg-gray-100" />
+
+            <View className="flex-row">
+              <View className="flex-1 p-4 bg-gray-50">
+                <Text className="text-xs uppercase tracking-wide text-gray-500">Lokasi Kerja</Text>
+                <Text className="mt-1 text-gray-900">{emp.work_location?.name ?? "-"}</Text>
+              </View>
+              <View className="w-px bg-gray-100" />
+              <View className="flex-1 p-4 bg-gray-50">
+                <Text className="text-xs uppercase tracking-wide text-gray-500">Jarak Rumah–Kantor</Text>
                 <Text className="mt-1 text-gray-900">
-                  {user?.email ?? "-"}
+                  {emp.distance_home_to_office_km ? `${emp.distance_home_to_office_km} km` : "-"}
                 </Text>
               </View>
             </View>
@@ -117,22 +155,21 @@ export default function ProfileScreen() {
 
           {/* Aksi */}
           <View className="mt-6">
+            <Button title="Logout" variant="destructive" className="mt-2" onPress={() => setOpen(true)} />
             <Button
-              title="Logout"
-              variant="destructive"
+              title="Refresh Profil"
+              variant="secondary"
               className="mt-2"
-              onPress={() => setOpen(true)}
+              onPress={doRefresh}
             />
           </View>
         </View>
 
-        {/* Bagian lain (opsional) */}
         <View className="mt-6 items-center">
-          <Text className="text-sm text-gray-400 text-center">
-            © 2025 | Developed by IT RSHM
-          </Text>
+          <Text className="text-sm text-gray-400 text-center">© 2025 | Developed by IT RSHM</Text>
         </View>
       </ScrollView>
+
       <ConfirmSheet
         visible={open}
         title="Logout"
@@ -143,6 +180,6 @@ export default function ProfileScreen() {
         onConfirm={doLogout}
         onCancel={() => setOpen(false)}
       />
-    </SafeAreaView>
+    </View>
   );
 }

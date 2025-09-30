@@ -22,9 +22,12 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "CAMERA"
-      ]
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION"],
+      "androidStatusBar": {
+        "translucent": true,
+        "backgroundColor": "transparent",
+        "barStyle": "light-content"
+      }
     },
     "web": {
       "bundler": "metro",

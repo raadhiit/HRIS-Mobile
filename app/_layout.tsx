@@ -1,47 +1,49 @@
-import { AuthProvider } from "@/shared/context/AuthProvider";
+import 'react-native-reanimated';
+import { AuthProvider, useAuth } from '@/shared/providers/AuthProvider';
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useSegments, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
-import { Text, useColorScheme, View } from "react-native";
+import { useColorScheme } from "react-native";
 import Toast from "react-native-toast-message";
+import { toastConfig } from '@/shared/ui/toastConfig';
 import "../global.css";
-
-import {
-  Roboto_400Regular, Roboto_500Medium, Roboto_700Bold,
-} from "@expo-google-fonts/roboto";
-
 import {
   Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
+import {
+  Roboto_400Regular, Roboto_500Medium, Roboto_700Bold,
+} from "@expo-google-fonts/roboto";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
-
-// tahan splash sampai font siap
 SplashScreen.preventAutoHideAsync();
 
-const MyToast = ({ text1, text2, type }: { text1?: string; text2?: string; type?: string }) => {
-  const bg =
-    type === "success" ? "bg-emerald-600"
-    : type === "error"   ? "bg-rose-600"
-    : "bg-slate-900/95";
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const segments = useSegments();
+  const router = useRouter();
+  const { token, hydrated } = useAuth();
 
-  return (
-    <View className={`mx-4 rounded-2xl px-4 py-3 ${bg}`}>
-      {!!text1 && <Text className="text-white font-semibold text-base">{text1}</Text>}
-      {!!text2 && <Text className="text-white/90 text-sm mt-0.5">{text2}</Text>}
-    </View>
-  );
-};
+  // Jalankan sekali saat hydrated berubah → putuskan akses
+  useEffect(() => {
+    if (!hydrated) return;
 
-// ✅ Mapping type -> komponen
-const toastConfig = {
-  success: (props: any) => <MyToast {...props} />,
-  error:   (props: any) => <MyToast {...props} />,
-  info:    (props: any) => <MyToast {...props} />,
-};
+    const inAuth = segments[0] === "(auth)";
+    const inHome = segments[0] === "(home)";
 
+    if (!token && !inAuth) {
+      router.replace("/(auth)/login");
+    } else if (token && inAuth) {
+      router.replace("/(home)");
+    }
+    // kalau token & inHome → biarkan
+  }, [segments, token, hydrated]);
+
+  // Tahan UI sampai hydrated supaya tidak lompat-lompat
+  if (!hydrated) return null;
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   const scheme = useColorScheme();
@@ -57,26 +59,31 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(scheme === "dark" ? "#000" : "#fff");
-
-    if (fontsLoaded) {
-      SplashScreen.hideAsync(); // tutup splash kalau font sudah siap
-    }
+    SystemUI.setBackgroundColorAsync("transparent");
+    if (fontsLoaded) SplashScreen.hideAsync();
   }, [scheme, fontsLoaded]);
 
-  if (!fontsLoaded) {
-    return null; // biarkan splash tetap tampil
-  }
+  if (!fontsLoaded) return null; 
 
   return (
     <AuthProvider>
-      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false }} />
-      <Toast
-        config={toastConfig}
-        position="top"
-        visibilityTime={2200}
-      />
+      <SafeAreaProvider>
+        <SafeAreaView 
+          style={{ flex: 1, backgroundColor: scheme === "dark" ? "#000" : "#fff" }}
+          edges={['left','right','bottom']}
+        >
+          <StatusBar
+            style={scheme === "dark" ? "light" : "dark"}
+            backgroundColor="transparent"
+            translucent
+          />
+          <Stack screenOptions={{ headerShown: false }} />
+          <Toast
+            config={toastConfig}
+            visibilityTime={2200}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
     </AuthProvider>
   );
 }

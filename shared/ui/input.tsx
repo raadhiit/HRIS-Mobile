@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { View, Text, TextInput, TextInputProps, Pressable } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
@@ -11,28 +11,40 @@ export interface InputProps extends Omit<TextInputProps, "onChangeText"> {
   errorText?: string;
   type?: InputType;
   required?: boolean;
+  requiredMessage?: string; 
   left?: React.ReactNode;
   right?: React.ReactNode;
   containerClassName?: string;
+  submitted?: boolean;
   onChangeText?: (text: string) => void;
 }
 
 export default function Input({
   label,
   helperText,
-  errorText,
+  errorText: errorFromParent,
   type = "text",
   required,
+  requiredMessage = "Wajib diisi!",
   left,
   right,
   containerClassName,
   value,
+  submitted,
   onChangeText,
   editable = true,
+  onBlur,
   ...rest
 }: InputProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    if (!submitted) {
+      setTouched(false);
+    }
+  }, [submitted])
+  const submittedFlag = !!submitted;
 
   const isPicker = type === "date" || type === "time";
 
@@ -160,13 +172,26 @@ export default function Input({
   const onConfirmPicker = (d: Date) => {
     if (type === "date") onChangeText?.(formatDate(d));
     else if (type === "time") onChangeText?.(formatTime(d));
+    setTouched(true);
     closePicker();
   };
+
+  const handleBlur = (e: any) => {
+    setTouched(true);
+    onBlur?.(e)
+  };
+
+  const isEmpty = (v: any) => (typeof v === "string" ? v.trim().length === 0 : !v);
+  const showError = (submittedFlag || touched) && required && isEmpty(value);
+  const requiredError = showError ? requiredMessage : undefined;
+
+  // Prioritas error: parent > requiredError
+  const effectiveError = errorFromParent ?? requiredError;
 
   return (
     <View className={["gap-1", containerClassName].filter(Boolean).join(" ")}>
       {!!label && (
-        <Text className="text-[12px] text-slate-600 mt-3">
+        <Text className="text-[14px] text-slate-600 mt-3">
           {label}
           {required && <Text className="text-rose-500"> *</Text>}
         </Text>
@@ -175,7 +200,7 @@ export default function Input({
       <View
         className={[
           "flex-row items-center rounded-xl border bg-white",
-          errorText ? "border-rose-300" : "border-slate-200",
+          effectiveError ? "border-rose-300" : "border-slate-200",
           editable ? "opacity-100" : "opacity-70",
         ].join(" ")}
       >
@@ -188,8 +213,9 @@ export default function Input({
               className="flex-1 px-3 py-2 text-slate-800 h-10"
               value={(value as string) ?? ""}
               placeholderTextColor="#94a3b8"
-              editable={false}               // <- jangan munculkan keyboard
-              pointerEvents="none"           // <- biar Pressable yang terima tap
+              editable={false}               
+              pointerEvents="none"           
+              onBlur={handleBlur}
               {...rest}
             />
           </Pressable>
@@ -207,6 +233,7 @@ export default function Input({
             autoCapitalize={autoCapitalize}
             autoCorrect={autoCorrect}
             editable={editable}
+            onBlur={handleBlur}
             {...rest}
           />
         )}
@@ -214,8 +241,8 @@ export default function Input({
         {!!RightAccessory && <View className="pr-2">{RightAccessory}</View>}
       </View>
 
-      {errorText ? (
-        <Text className="text-[11px] text-rose-600">{errorText}</Text>
+      {effectiveError ? (
+        <Text className="text-[11px] text-rose-600">{effectiveError}</Text>
       ) : !!helperText ? (
         <Text className="text-[11px] text-slate-500">{helperText}</Text>
       ) : null}
@@ -229,7 +256,6 @@ export default function Input({
           onConfirm={onConfirmPicker}
           onCancel={closePicker}
           is24Hour
-          // minuteInterval={1} // optional
         />
       )}
     </View>

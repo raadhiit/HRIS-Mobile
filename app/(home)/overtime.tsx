@@ -3,8 +3,8 @@ import { useState } from "react";
 import Page from "@/features/home/layouts/Page";
 import Input from "@/shared/ui/input";
 import { MaterialIcons } from "@expo/vector-icons";
-import { History } from "@/shared/api/types";
-import { mockHome } from "@/shared/api/mocks";
+// import { History } from "@/shared/api/types";
+// import { mockHome } from "@/shared/api/mocks";
 
 export default function LemburPage() {
   const [form, setForm] = useState({
@@ -17,7 +17,7 @@ export default function LemburPage() {
   
   const set = (k: keyof typeof form) => (v:string) => setForm((s) => ({ ...s, [k]: v }));
 
-  const history: History[] = mockHome.history?? [];
+  // const history: History[] = mockHome.history?? [];
 
   const doSubmit = () => {
     console.log("OVERTIME SUBMIT", form);
@@ -87,7 +87,7 @@ export default function LemburPage() {
             Riwayat Lembur
           </Text>
 
-         {history.map((h, i) => (
+         {/* {history.map((h, i) => (
             <View key={i} className="flex-row items-center gap-3 py-2">
               <View className={`w-8 h-8 rounded-full items-center justify-center ${
                 h.status === "approved" ? "bg-emerald-100"
@@ -118,7 +118,7 @@ export default function LemburPage() {
                 </Text>
               </View>
             </View>
-          ))}
+          ))} */}
 
         </View>
 

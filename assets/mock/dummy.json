@@ -1,0 +1,13 @@
+{
+  "status": "success",
+  "message": "Pengajuan cuti/izin berhasil disimpan",
+  "data": {
+    "id": 101,
+    "start": "2025-09-17",
+    "end": "2025-09-18",
+    "leaveType": "Cuti Tahunan",
+    "reason": "Liburan keluarga",
+    "subtitute": "Fajar Bustomi",
+    "status": "Pending"
+  }
+}

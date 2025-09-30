@@ -1,36 +1,77 @@
-// API/attendanceApi.ts
-export async function submitAttendance({
-  photoUri,
-  type,
-  token,
-  extra = {},
-}: {
-  photoUri: string;
-  type: "in" | "out";
-  token: string;
-  extra?: Record<string, any>; // bisa kirim lat/long, timestamp, userId, dll
-}) {
-  const form = new FormData();
-  form.append("photo", {
-    uri: photoUri,
-    type: "image/jpeg",
-    name: `attendance-${type}.jpg`,
-  } as any);
-  form.append("type", type);
-  Object.entries(extra).forEach(([k, v]) => form.append(k, String(v)));
+import { joinUrl, getToken, apiJSON } from "@/shared/api/http";
+import { getDeviceId } from "../device/id";
+import { 
+  AttendanceVariant, 
+  AttendancePayload, 
+  AttendanceResponse,
+  AttendanceHistoryResponse  
+} from "../types/attendance";
 
-  const res = await fetch("https://api.example.com/presensi", {
-    method: "POST",
-    headers: {
-      "Content-Type": "multipart/form-data",
-      Authorization: `Bearer ${token}`,
-    },
-    body: form,
+export async function submitAttendanceMobileMultipart(
+  variant: AttendanceVariant,
+  payload: Omit<AttendancePayload, "type">,
+  photoUri: string | null,
+  fileField: string = "photo"
+): Promise<AttendanceResponse> {
+  const path = variant === "in" ? "/attendance/check-in/mobile" : "/attendance/check-out/mobile";
+  const url = joinUrl(path);
+
+  const form = new FormData();
+  form.append("type", variant === "in" ? "check-in" : "check-out");
+
+  Object.entries(payload).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) form.append(k, String(v));
   });
 
-  if (!res.ok) {
-    const message = await res.text().catch(() => "Upload gagal");
-    throw new Error(message);
+  if (photoUri) {
+    const filename = photoUri.split("/").pop() || "photo.jpg";
+    const ext = (filename.split(".").pop() || "jpg").toLowerCase();
+    const mime = ext === "png" ? "image/png" : "image/jpeg";
+    const fileData = { uri: photoUri, type: mime, name: filename } as any;
+    form.append(fileField, fileData);
+  } else {
+    console.log("[multipart] no photoUri provided, skip file");
   }
-  return res.json();
+
+  const deviceId = await getDeviceId();
+  const token = await getToken();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      "X-Device-Id": deviceId,
+    },
+    body: form,
+    credentials: "omit",
+  });
+
+  const text = await (async () => { try { return await res.text(); } catch { return ""; } })();
+  let raw: any = null;
+  try { raw = text ? JSON.parse(text) : null; } catch {}
+
+  if (!res.ok) {
+    throw new Error(raw?.message || raw?.error || `Request gagal (${res.status})`);
+  }
+
+  // Normalisasi field supaya konsisten di FE
+  const normalized: AttendanceResponse = {
+    success: raw?.success ?? true,
+    message: raw?.message,
+    data: raw?.data,
+    meta: raw?.meta,
+    allowed: raw?.allowed ?? raw?.data?.allowed ?? false,
+    distance: raw?.distance ?? raw?.data?.distance ?? undefined,
+    radius: raw?.radius ?? raw?.data?.radius ?? undefined,
+    locationName: raw?.locationName ?? raw?.data?.locationName ?? null,
+  };
+
+  return normalized;
+}
+
+export async function getAttendanceHistory(page = 1) {
+  return apiJSON<AttendanceHistoryResponse>(`/attendance/history?page=${page}`, {
+    method: "GET",
+  });
 }

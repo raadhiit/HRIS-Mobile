@@ -1,19 +1,13 @@
 // components/ModalAttendance.tsx
-import { useAttendanceCamera } from "@/shared/hooks/useAttendanceCamera";
+import Toast from "react-native-toast-message";
+import * as Haptics from "expo-haptics";
+import { useAttendanceCamera } from "@/shared/hooks/attendance/useAttendanceCamera";
 import { formatJamID, formatTanggalID } from "@/shared/utils/datetime";
-import React from "react";
+import { distanceMeters, toNumberOrNull } from "@/shared/types/geo";
+import { useEmployeeProfile } from "@/shared/hooks/userEmployees";
+import React, { useMemo, useState } from "react";
 import { Image, Modal, Pressable, Text, View } from "react-native";
-
-type Variant = "in" | "out";
-
-export interface ModalAttendanceProps {
-  visible: boolean;
-  onClose: () => void;
-  onConfirm: () => void; // dipanggil setelah submit sukses (opsional di parent)
-  variant: Variant;
-  locationName?: string;
-  token: string; // auth untuk upload
-}
+import { BackendDistancePayload, ModalAttendanceProps } from "@/shared/types/attendance";
 
 export default function ModalAttendance({
   visible,
@@ -22,9 +16,13 @@ export default function ModalAttendance({
   variant,
   locationName = "RS Harapan Mulia",
   token,
+  coords,
+  userId,
 }: ModalAttendanceProps) {
   const now = new Date();
   const title = variant === "in" ? "Masuk" : "Keluar";
+
+  // warna tombol & kartu waktu tetap seperti sebelumnya
   const tone = {
     cardBg: variant === "in" ? "bg-emerald-50" : "bg-rose-50",
     cardBorder: variant === "in" ? "border-emerald-100" : "border-rose-100",
@@ -32,24 +30,91 @@ export default function ModalAttendance({
     pillBg: variant === "in" ? "bg-emerald-500" : "bg-rose-500",
   };
 
+  const { data: emp } = useEmployeeProfile();
   const { photoUri, takePhoto, submit, loading, error, setPhotoUri } = useAttendanceCamera(token);
+
+  // ======== Hitung jarak & allowed **di sisi UI** (pra-submit) ========
+  const office = emp?.work_location;
+  const officeLat = useMemo(() => toNumberOrNull(office?.latitude), [office?.latitude]);
+  const officeLon = useMemo(() => toNumberOrNull(office?.longitude), [office?.longitude]);
+  const officeRadius = useMemo(() => toNumberOrNull(office?.radius_meters), [office?.radius_meters]);
+
+  const uiDistance = useMemo(() => {
+    if (!coords || officeLat == null || officeLon == null) return null;
+    return distanceMeters(coords.latitude, coords.longitude, officeLat, officeLon);
+  }, [coords, officeLat, officeLon]);
+
+  // toleransi kecil berdasarkan akurasi (maks 10 m)
+  const accTol = useMemo(() => Math.min(10, (coords?.accuracy ?? 0) * 0.5), [coords?.accuracy]);
+
+  const uiAllowed = useMemo(() => {
+    if (uiDistance == null || officeRadius == null) return true; // jika data kantor tidak lengkap, jangan menghalangi
+    const effectiveRadius = officeRadius + accTol;
+    return uiDistance <= effectiveRadius;
+  }, [uiDistance, officeRadius, accTol]);
+
+  // ======== State hasil dari backend (post-submit) ========
+  const [serverInfo, setServerInfo] = useState<BackendDistancePayload | null>(null);
+
+  const showAllowed = serverInfo?.allowed ?? uiAllowed;
+  const showDistance = serverInfo?.distance_meters ?? uiDistance ?? null;
+  const showRadius = serverInfo?.radius_meters ?? officeRadius ?? null;
+
+  const toneCardBg = showAllowed ? "bg-emerald-50" : "bg-rose-50";
+  const toneCardBorder = showAllowed ? "border-emerald-100" : "border-rose-100";
+  const dotColor = showAllowed ? "bg-emerald-500" : "bg-rose-500";
+  const titleText = showAllowed ? "Lokasi Di Dalam Radius" : "Lokasi Berada Di Luar Radius";
+
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
 
   const handleConfirmPress = async () => {
     const action = variant === "in" ? "MASUK" : "KELUAR";
-    const stamp = `${now.toDateString()} ${now.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    })}`;
-    console.log(`[ModalAttendance] Aksi: ${action} pada ${stamp}`);
+    console.log(`[ModalAttendance] Aksi: ${action} pada ${now.toISOString()}`);
 
-    // kirim ke API (kamu bisa kirim metadata tambahan di extra)
-    const resp = await submit(variant, { locationName });
-    if (resp) {
-      onConfirm?.();
-      onClose();
-      // reset preview jika mau:
-      setPhotoUri(null);
+    const res = await submit(variant, {
+      userId,
+      locationName,
+      coords: coords
+        ? {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy ?? undefined,
+            timestamp: coords.timestamp ?? Date.now(),
+          }
+        : null,
+    });
+
+    if (res) {
+      setServerInfo({
+        allowed: res.allowed,
+        distance_meters: res.distance ?? null,
+        radius_meters: res.radius ?? null,
+        message: res.message,
+      });
+
+      setSubmitMsg(res.message ?? null);
+
+      if (res.success) {
+        // === Notifikasi sukses ===
+        const timeStr = `${formatJamID(new Date(), false)} • ${formatTanggalID(new Date())}`;
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Toast.show({
+          type: "attendanceSuccess",
+          position: "bottom",
+          topOffset: 14,
+          visibilityTime: 2500,
+          props: {
+            variant,
+            timeStr, 
+            location: locationName,
+          },
+        });
+
+        onConfirm?.();
+        onClose();
+        setPhotoUri(null);
+      }
     }
   };
 
@@ -98,13 +163,22 @@ export default function ModalAttendance({
                 </View>
               </View>
 
-              {/* Lokasi */}
-              <View className={`mt-4 rounded-2xl border ${tone.cardBorder} ${tone.cardBg} p-4`}>
+              {/* Lokasi (berbasis jarak, bukan accuracy) */}
+              <View className={`mt-4 rounded-2xl border ${toneCardBorder} ${toneCardBg} p-4`}>
                 <View className="flex-row items-start">
-                  <View className="h-3 w-3 rounded-full bg-emerald-500 mt-1 mr-3" />
+                  <View className={`h-3 w-3 rounded-full ${dotColor} mt-1 mr-3`} />
                   <View className="flex-1">
-                    <Text className="font-poppins-medium text-slate-800">Lokasi Terdeteksi</Text>
-                    <Text className="text-slate-500 mt-0.5">{locationName}</Text>
+                    <Text className="font-poppins-medium text-slate-800">{titleText}</Text>
+                    <Text className="text-slate-500 mt-0.5">{locationName ?? "-"}</Text>
+
+                    {coords && (
+                      <Text className="text-slate-400 mt-1">
+                        Lat: {coords.latitude.toFixed(5)} | Lon: {coords.longitude.toFixed(5)}
+                        {showDistance != null && showRadius != null
+                          ? ` | Jarak: ${Math.round(showDistance)}m / Radius: ${Math.round(showRadius)}m`
+                          : ""}
+                      </Text>
+                    )}
                   </View>
                 </View>
               </View>
@@ -117,7 +191,9 @@ export default function ModalAttendance({
               <Pressable
                 onPress={handleConfirmPress}
                 disabled={loading || !photoUri}
-                className={`h-12 rounded-2xl items-center justify-center ${loading || !photoUri ? "bg-slate-300" : tone.pillBg}`}
+                className={`h-12 rounded-2xl items-center justify-center ${
+                  loading || !photoUri ? "bg-slate-300" : tone.pillBg
+                }`}
               >
                 <Text className="text-white font-poppins-semibold">
                   {loading ? "Menyimpan..." : variant === "in" ? "MASUK" : "KELUAR"}

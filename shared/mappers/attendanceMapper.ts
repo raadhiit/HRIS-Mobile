@@ -1,0 +1,62 @@
+import { AttendanceRecord } from "../types/attendance";
+
+export type Activity = {
+  title: string;
+  subtitle: string;
+  iconName: "login" | "logout";
+  ts: number;
+  tone: {
+    icon: string;   // warna icon
+    bg: string;     // warna background
+    text: string;   // warna teks
+  };
+};
+
+function fmt(date: Date) {
+  const hari = date.toLocaleDateString("id-ID", { weekday: "long" });
+  const tgl = date.getDate().toString().padStart(2, "0");
+  const bln = (date.getMonth() + 1).toString().padStart(2, "0");
+  const thn = date.getFullYear();
+  const jam = date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+
+  return `${hari}, ${tgl}-${bln}-${thn}, ${jam} WIB`;
+}
+
+export function mapAttendanceToActivities(records: AttendanceRecord[]): Activity[] {
+  const events: Activity[] = [];
+
+  for (const r of records) {
+    if (r.check_in_time) {
+      const d = new Date(r.check_in_time.replace(" ", "T"));
+      events.push({
+        title: "Masuk",
+        subtitle: fmt(d),
+        iconName: "login",
+        ts: d.getTime(),
+        tone: {
+          icon: "#059669",      // emerald-600
+          bg: "#ECFDF5",        // emerald-50
+          text: "#065F46",      // emerald-700
+        },
+      });
+    }
+    if (r.check_out_time) {
+      const d = new Date(r.check_out_time.replace(" ", "T"));
+      events.push({
+        title: "Keluar",
+        subtitle: fmt(d),
+        iconName: "logout",
+        ts: d.getTime(),
+        tone: {
+          icon: "#DC2626",      // red-600
+          bg: "#FEF2F2",        // red-50
+          text: "#991B1B",      // red-700
+        },
+      });
+    }
+  }
+
+  // urutkan terbaru -> terlama
+  events.sort((a, b) => b.ts - a.ts);
+  return events;
+}

@@ -1,70 +1,63 @@
-import { useAuth } from "@/shared/context/AuthProvider";
-import { Button } from "@/shared/ui/button";
-import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    Text,
-    TextInput,
-    View
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
+import { loginRaw, setToken as saveToken } from "@/shared/api/prod/auth/auth_min";
+import { useAuth } from "@/shared/providers/AuthProvider";
+import { Button } from "@/shared/ui/button";
+import ResponsiveLogo from "@/shared/ui/responsiveLogo";
 
 export default function Login() {
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
     const [secure, setSecure] = useState(true);
     const LogoImage = require("../../assets/img/logo-harmul.png");
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
-    const { login } = useAuth();
+  const { setToken } = useAuth();
 
-    const onLogin = async () => {
-        if (!email.trim() || !password) {
-            Toast.show({
-                type: "info",
-                text1: "Lengkapi data",
-                text2: "Email dan password wajib diisi.",
-            });
-            return;
-        }
+  const onLoginAndPost = async () => {
+    if (!username.trim() || !password) {
+      Toast.show({
+        type: "warning",
+        text1: "Lengkapi data",
+        text2: "Username dan password wajib diisi.",
+      });
+      return;
+    }
 
-        try {
-            const result = await login({
-                email: email.trim().toLowerCase(),
-                password,
-            });
-
-            if (result === "2fa_required") {
-                Toast.show({
-                    type: "success",
-                    text1: "Kode OTP dikirim",
-                    text2: "Silakan verifikasi terlebih dulu.",
-                });
-                router.push("/auth/otp" as any);
-            } else {
-                Toast.show({
-                    type: "success",
-                    text1: "Login berhasil",
-                    text2: "Mengalihkan ke beranda…",
-                });
-                router.replace("/(home)");
-            }
-        } catch (e: any) {
-            Toast.show({
-                type: "error",
-                text1: "Login gagal",
-                text2: e?.message || "Terjadi kesalahan.",
-            });
-        }
-    };
+    setLoading(true);
+    try {
+        const ok = await loginRaw(username, password, "mobile");
+        await saveToken(ok.data.token);
+        await setToken(ok.data.token);
+        router.replace("/(home)");
+        Toast.show({
+            type: "success",
+            text1: "Login Berhasil!",
+        });
+    } catch(e: any) {
+        Toast.show({
+            type: "error",
+            text1: "Login gagal",
+            text2: e.message || "Username atau password salah.",
+        });
+    } finally {
+        setLoading(false);
+    }
+  };
 
     return (
         <SafeAreaView className="flex-1 bg-white/50">
@@ -79,10 +72,12 @@ export default function Login() {
                 >
                     <View className="flex-1 items-center justify-start px-8 pt-20 pb-6 gap-y-6">
                         <View className="w-full items-center">
-                            <Image 
-                                source={LogoImage} 
-                                className="h-48 w-64"
-                                resizeMode="contain"
+                            <ResponsiveLogo 
+                                source={LogoImage}
+                                maxWidth={420}
+                                widthPct={0.7}
+                                accessibilityLabel="Logo HRIS RSHM"
+                                borderRadius={12}
                             />
                             <Text className="text-4xl font-roboto-medium tracking-wide mt-6">
                                 HRIS RSHM
@@ -91,9 +86,9 @@ export default function Login() {
                          <View className="w-full mt-6 gap-y-2">
                             <View className="bg-white rounded-2xl px-4 py-2 border border-gray-200 shadow-lg">
                                 <TextInput
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    placeholder="email..."
+                                    value={username}
+                                    onChangeText={setUsername}
+                                    placeholder="username..."
                                     placeholderTextColor="#9ca3af"
                                     autoCapitalize="none"
                                     autoCorrect={false}
@@ -132,7 +127,7 @@ export default function Login() {
                                 className="mt-5"
                                 autoLoading
                                 minLoadingMs={1200}
-                                onPress={onLogin}
+                                onPress={onLoginAndPost}
                             />
 
                             <Pressable
