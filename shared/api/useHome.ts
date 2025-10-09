@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Activity, mapAttendanceToActivities } from "../attendance/mappers/attendanceMapper";
 import { getAttendanceHistory } from "./attendanceAPI";
-import { mapAttendanceToActivities, Activity } from "../mappers/attendanceMapper";
 
 export function useHome() {
   const [data, setData] = useState<{ stats: any; activities: Activity[]; pagination: any } | null>(null);

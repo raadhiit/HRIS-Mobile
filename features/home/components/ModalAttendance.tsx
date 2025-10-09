@@ -1,13 +1,14 @@
 // components/ModalAttendance.tsx
-import Toast from "react-native-toast-message";
-import * as Haptics from "expo-haptics";
-import { useAttendanceCamera } from "@/shared/hooks/attendance/useAttendanceCamera";
-import { formatJamID, formatTanggalID } from "@/shared/utils/datetime";
+import { emitTodayAttendanceChanged } from "@/shared/attendance/events/attendanceEvents";
+import { useAttendanceCamera } from "@/shared/attendance/hooks/useAttendanceCamera";
+import { useEmployeeProfile } from "@/shared/employee/hooks/userEmployees";
+import { BackendDistancePayload, ModalAttendanceProps } from "@/shared/types/attendance";
 import { distanceMeters, toNumberOrNull } from "@/shared/types/geo";
-import { useEmployeeProfile } from "@/shared/hooks/userEmployees";
+import { formatJamID, formatTanggalID } from "@/shared/utils/datetime";
+import * as Haptics from "expo-haptics";
 import React, { useMemo, useState } from "react";
 import { Image, Modal, Pressable, Text, View } from "react-native";
-import { BackendDistancePayload, ModalAttendanceProps } from "@/shared/types/attendance";
+import Toast from "react-native-toast-message";
 
 export default function ModalAttendance({
   visible,
@@ -24,10 +25,10 @@ export default function ModalAttendance({
 
   // warna tombol & kartu waktu tetap seperti sebelumnya
   const tone = {
-    cardBg: variant === "in" ? "bg-emerald-50" : "bg-rose-50",
-    cardBorder: variant === "in" ? "border-emerald-100" : "border-rose-100",
-    timeTxt: variant === "in" ? "text-emerald-700" : "text-rose-700",
-    pillBg: variant === "in" ? "bg-emerald-500" : "bg-rose-500",
+    cardBg: variant === "in" ? "bg-blue-50" : "bg-rose-50",
+    cardBorder: variant === "in" ? "border-blue-100" : "border-rose-100",
+    timeTxt: variant === "in" ? "text-blue-700" : "text-rose-700",
+    pillBg: variant === "in" ? "bg-blue-500" : "bg-rose-500",
   };
 
   const { data: emp } = useEmployeeProfile();
@@ -60,9 +61,9 @@ export default function ModalAttendance({
   const showDistance = serverInfo?.distance_meters ?? uiDistance ?? null;
   const showRadius = serverInfo?.radius_meters ?? officeRadius ?? null;
 
-  const toneCardBg = showAllowed ? "bg-emerald-50" : "bg-rose-50";
-  const toneCardBorder = showAllowed ? "border-emerald-100" : "border-rose-100";
-  const dotColor = showAllowed ? "bg-emerald-500" : "bg-rose-500";
+  const toneCardBg = showAllowed ? "bg-blue-50" : "bg-rose-50";
+  const toneCardBorder = showAllowed ? "border-blue-100" : "border-rose-100";
+  const dotColor = showAllowed ? "bg-blue-500" : "bg-rose-500";
   const titleText = showAllowed ? "Lokasi Di Dalam Radius" : "Lokasi Berada Di Luar Radius";
 
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
@@ -97,6 +98,8 @@ export default function ModalAttendance({
       if (res.success) {
         // === Notifikasi sukses ===
         const timeStr = `${formatJamID(new Date(), false)} • ${formatTanggalID(new Date())}`;
+
+        emitTodayAttendanceChanged();
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Toast.show({
@@ -155,7 +158,7 @@ export default function ModalAttendance({
                   ) : (
                     <>
                       <Text className="text-4xl text-slate-400 mb-3">📷</Text>
-                      <Pressable onPress={takePhoto} className="px-5 py-2 rounded-xl bg-emerald-700">
+                      <Pressable onPress={takePhoto} className="px-5 py-2 rounded-xl bg-blue-700">
                         <Text className="text-white font-roboto">Ambil Foto</Text>
                       </Pressable>
                     </>

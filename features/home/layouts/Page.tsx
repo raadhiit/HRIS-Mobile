@@ -29,7 +29,7 @@ export default function Page({
 
   const Header = (
     <View
-      className="bg-emerald-600 px-5 pb-6 rounded-b-3xl"
+      className="bg-blue-600 px-5 pb-6 rounded-b-3xl"
       style={{ paddingTop: insets.top + 12 }}
     >
       <View className="flex-row items-center justify-between">

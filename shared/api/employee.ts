@@ -1,26 +1,9 @@
-// shared/api/prod/profile/employee.ts
-import { apiJSON } from "@/shared/api/http";
 import { getAuthMe, type MeEmployee } from "@/shared/api/prod/auth/me";
 
-export type Department = { id: number; name: string; code: string };
-export type Position = { id: number; name: string; code: string };
-export type Shift = { id: number; name: string; code: string; start_time: string | null; end_time: string | null };
-export type WorkLocation = {
-  id: number;
-  name: string;
-  code: string;
-  address: string | null;
-  latitude: string | null;
-  longitude: string | null;
-  radius_meters: string | null;
-};
-
-/** ✅ Tambahkan user_id agar bisa dipakai saat presensi */
 export type EmployeeProfile = MeEmployee & { user_id?: number };
 
 let inflightProfile: Promise<EmployeeProfile> | null = null;
 
-/** 🔄 Sekarang ambil dari /auth/me lalu mapping ke EmployeeProfile + user_id */
 export async function getEmployeeProfile(force = false): Promise<EmployeeProfile> {
   if (!force && inflightProfile) return inflightProfile;
 

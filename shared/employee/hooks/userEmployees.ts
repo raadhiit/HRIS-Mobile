@@ -1,6 +1,6 @@
-import { useMemo, useCallback } from "react";
+import type { EmployeeProfile } from "@/shared/api/employee";
 import { useAuth } from "@/shared/providers/AuthProvider";
-import type { EmployeeProfile } from "@/shared/api/prod/profile/employee";
+import { useCallback, useMemo } from "react";
 
 export function useEmployeeProfile() {
   const { employee, token, hydrated, refreshEmployee } = useAuth();

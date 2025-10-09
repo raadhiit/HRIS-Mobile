@@ -15,11 +15,11 @@ export default function Section({
 }) {
   return (
     <View
-      className={`mx-5 my-3 bg-white rounded-2xl p-4 border border-gray-200 shadow ${className}`}
+      className={`mx-5 my-2 bg-white rounded-2xl p-4 border border-slate-300 shadow ${className}`}
       style={style}
     >
       {title ? (
-        <Text className="font-poppins-medium text-xl text-slate-800 mb-3">
+        <Text className="font-poppins-medium text-xl text-blue-900 mb-3">
           {title}
         </Text>
       ) : null}

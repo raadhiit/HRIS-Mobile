@@ -1,11 +1,11 @@
 // app/(home)/sections/BigActions.tsx
-import { useDetectedLocation } from "@/shared/hooks/attendance/useDetectedLocation";
+import ModalAttendance from "@/features/home/components/ModalAttendance";
+import { useDetectedLocation } from "@/shared/attendance/hooks/useDetectedLocation";
 import { useAuth } from "@/shared/providers/AuthProvider";
 import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import CircleIcon from "../components/CircleIcon";
-import ModalAttendance from "../components/ModalAttendance";
-import Section from "../components/Section";
+import CircleIcon from "../../shared/ui/CircleIcon";
+import Section from "./components/Section";
 
 type OpenState = null | "in" | "out";
 
@@ -35,7 +35,7 @@ export default function BigActions(props: {
     loading ? "Mendeteksi lokasi…" : error ? error : (locationName?.trim().length ? "Lokasi Tidak Terdeteksi" : "Lokasi diketahui");
 
   return (
-    <Section className={className} style={{ elevation: 8 }}>
+    <Section title="Absensi" className={className} style={{ elevation: 8 }}>
       {/* tombol */}
       <View className="flex-row gap-4">
         <Pressable
@@ -44,11 +44,11 @@ export default function BigActions(props: {
             setOpen("in");
             onCheckIn?.();
           }}
-          className="flex-1 bg-emerald-50 rounded-xl p-4 border border-emerald-100"
+          className="flex-1 bg-blue-100 rounded-xl p-4 border border-blue-300"
         >
           <View className="items-center">
-            <CircleIcon name="access-time" bg="#10b981" />
-            <Text className="mt-2 font-roboto-medium text-emerald-700">Masuk</Text>
+            <CircleIcon name="access-time" bg="#3B82F6" />
+            <Text className="mt-2 font-roboto-medium text-blue-700">Masuk</Text>
           </View>
         </Pressable>
 
@@ -58,7 +58,7 @@ export default function BigActions(props: {
             setOpen("out");
             onCheckOut?.();
           }}
-          className="flex-1 bg-rose-50 rounded-xl p-4 border border-rose-100"
+          className="flex-1 bg-rose-100 rounded-xl p-4 border border-rose-300"
         >
           <View className="items-center">
             <CircleIcon name="access-time" bg="#ef4444" />

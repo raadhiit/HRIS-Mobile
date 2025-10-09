@@ -78,8 +78,8 @@ export default function LeavePage() {
           <View className="flex-row items-center justify-between">
             {/* kiri: user + role */}
             <View className="flex-row items-center gap-3">
-              <View className="h-10 w-10 rounded-full bg-emerald-100 items-center justify-center">
-                <MaterialIcons name="person" size={20} color="#059669" />
+              <View className="h-10 w-10 rounded-full bg-blue-100 items-center justify-center">
+                <MaterialIcons name="person" size={20} color="#2563EB" />
               </View>
               <View>
                 <Text className="text-black font-poppins-medium text-base">
@@ -164,10 +164,10 @@ export default function LeavePage() {
 
           <View className="gap-2 mt-4">
             <Pressable 
-              className="rounded-2xl bg-emerald-600 py-3 items-center"
+              className="rounded-2xl bg-blue-600 py-3 items-center"
               onPress={doSubmit}
             >
-              <Text className="text-white font-roboto">Ajukan Cuti/Izin</Text>
+              <Text className="text-white font-roboto-bold">Ajukan Cuti/Izin</Text>
             </Pressable>
           </View>
         </View>

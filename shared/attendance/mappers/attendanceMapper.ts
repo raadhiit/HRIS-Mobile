@@ -1,4 +1,4 @@
-import { AttendanceRecord } from "../types/attendance";
+import { AttendanceRecord } from "../../types/attendance";
 
 export type Activity = {
   title: string;
@@ -34,9 +34,9 @@ export function mapAttendanceToActivities(records: AttendanceRecord[]): Activity
         iconName: "login",
         ts: d.getTime(),
         tone: {
-          icon: "#059669",      // emerald-600
-          bg: "#ECFDF5",        // emerald-50
-          text: "#065F46",      // emerald-700
+          icon: "#2563EB",      // blue-600
+          bg: "#EFF6FF",        // blue-50
+          text: "#1D4ED8",      // blue-700
         },
       });
     }

@@ -72,10 +72,10 @@ export default function LemburPage() {
 
           <View className="gap-2 mt-2">
             <Pressable 
-              className="rounded-2xl bg-emerald-600 py-3 items-center"
+              className="rounded-2xl bg-blue-600 py-3 items-center"
               onPress={doSubmit}
             >
-              <Text className="text-white font-roboto">Ajukan Lembur</Text>
+              <Text className="text-white font-roboto-bold">Ajukan Lembur</Text>
             </Pressable>
           </View>
         </View>

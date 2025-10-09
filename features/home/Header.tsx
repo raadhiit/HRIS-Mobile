@@ -1,8 +1,9 @@
 // app/(home)/components/Header.tsx (atau lokasi kamu sekarang)
+import { useEmployeeProfile } from "@/shared/employee/hooks/userEmployees";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
-import { useEmployeeProfile } from "@/shared/hooks/userEmployees";
 
 export default function Header() {
   const router = useRouter();
@@ -13,12 +14,19 @@ export default function Header() {
   const position = emp?.position?.name ?? "";
   const subtitle = [position, dept].filter(Boolean).join(" • ");
 
+  const greeting = useMemo(() => {
+  const hour = new Date().getHours();
+    if (hour < 12) return "Good Morning,";
+    if (hour < 18) return "Good Afternoon,";
+    return "Good Evening,"; 
+  }, []);
+
   return (
-    <View className="bg-emerald-600 rounded-b-3xl px-5 pt-12 pb-4">
+    <View className="bg-blue-600 rounded-b-3xl px-5 pt-12 pb-4">
       <View className="flex-row justify-between items-start px-2 pb-4">
         <View>
           <Text className="text-white text-3xl font-poppins-bold mb-2">
-            Good Morning,
+            {greeting}
           </Text>
           <Text className="text-white text-lg italic font-poppins">
             {fullName || "—"}

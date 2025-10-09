@@ -1,56 +1,78 @@
-import React, { useEffect, useState, useCallback } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  RefreshControl,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useHome } from "@/shared/api/useHome";
+import HomeSkeleton from "@/features/home/components/skeleton/HomeSkeleton";
 import { getAttendanceHistory } from "@/shared/api/attendanceAPI";
-import { mapAttendanceToActivities, Activity } from "@/shared/mappers/attendanceMapper";
-import BigActions from "../../features/home/components/BigActions";
-import Header from "../../features/home/components/Header";
-import MenuGrid from "../../features/home/components/MenuGrid";
-import TodayInfo from "../../features/home/components/TodayInfo";
+import { useHome } from "@/shared/api/useHome";
+import { Activity, mapAttendanceToActivities } from "@/shared/attendance/mappers/attendanceMapper";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import BigActions from "../../features/home/BigActions";
+import Header from "../../features/home/Header";
+import MenuGrid from "../../features/home/MenuGrid";
+import RecentAct from "../../features/home/RecentActivity";
+import TodayInfo from "../../features/home/TodayInfo";
+import HeaderSkeleton from "../../features/home/components/skeleton/HeaderSkeleton";
 
 export default function HomeIndex() {
-  const { data, error, refresh: refreshHome } = useHome();
+  const { error, refresh: refreshHome } = useHome();
+
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false); // ✅ untuk pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(true);
   const [activities, setActivities] = useState<Activity[]>([]);
+  const unmounted = useRef(false);
 
   const loadActivities = useCallback(async () => {
     try {
       const res = await getAttendanceHistory();
       if (res.success) {
         const events = mapAttendanceToActivities(res.data.records);
-        setActivities(events.slice(0, 1)); // ambil 1 terbaru
+        if (!unmounted.current) setActivities(events.slice(0, 1));
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!unmounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setTimeout(() => {
+          if (!unmounted.current) setShowSkeleton(false);
+        }, 300);
+      }
     }
   }, []);
 
   useEffect(() => {
+    unmounted.current = false;
     loadActivities();
+    return () => {
+      unmounted.current = true;
+    };
   }, [loadActivities]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    // refresh dua hal: data home & attendance
+    setShowSkeleton(true);
     refreshHome();
     loadActivities();
   }, [refreshHome, loadActivities]);
 
-  if (loading) return <ActivityIndicator size="large" />;
+  // Initial load → header skeleton + content skeleton
+  if (loading && showSkeleton) {
+    return (
+      <SafeAreaView edges={["left", "right", "bottom"]} className="flex-1 bg-slate-100">
+        <HeaderSkeleton />
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 12 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <HomeSkeleton />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={["left", "right", "bottom"]} className="flex-1 bg-slate-100">
-      <Header />
+      {/* Saat refresh → header juga skeleton */}
+      {showSkeleton ? <HeaderSkeleton /> : <Header />}
 
       {error ? (
         <View className="flex-1 items-center justify-center px-6">
@@ -64,12 +86,24 @@ export default function HomeIndex() {
           contentContainerStyle={{ paddingBottom: 12 }}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={"#DBEAFE"}
+              colors={["#60A5FA"]}
+            />
           }
         >
-          <BigActions token="dummy-token-123" onCheckIn={() => {}} onCheckOut={() => {}} />
-          {/* <TodayInfo stats={data!.stats} /> */}
-          <MenuGrid />
+          {showSkeleton ? (
+            <HomeSkeleton />
+          ) : (
+            <>
+              <BigActions token="dummy-token-123" onCheckIn={() => {}} onCheckOut={() => {}} />
+              <TodayInfo  />
+              <MenuGrid />
+              <RecentAct />
+            </>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>

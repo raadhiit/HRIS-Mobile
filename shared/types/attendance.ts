@@ -82,3 +82,11 @@ export type AttendanceHistoryResponse = {
     version: string;
   };
 };
+
+export type TodayAttendance = {
+  check_in_time: string | null;
+  check_out_time: string | null;
+  formatted_work_duration: string;
+  overtime_duration_minutes?: string;
+  overtime_hours?: number;  
+}

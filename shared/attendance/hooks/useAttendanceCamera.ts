@@ -1,4 +1,3 @@
-// shared/hooks/useAttendanceCamera.ts
 import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { submitAttendanceMobileMultipart } from "@/shared/api/attendanceAPI";
@@ -66,7 +65,7 @@ export function useAttendanceCamera(token: string) {
         photoUri
       );
 
-      return res; // <- Modal akan pakai res.allowed/res.message/distance/radius/locationName
+      return res;
     } catch (e: any) {
       const msg = e?.message || "Gagal menyimpan presensi.";
       console.log("[attendance submit] error:", msg);

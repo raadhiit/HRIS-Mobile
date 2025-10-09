@@ -22,7 +22,10 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
-      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION"
+      ],
       "androidStatusBar": {
         "translucent": true,
         "backgroundColor": "transparent",

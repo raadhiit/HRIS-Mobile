@@ -1,6 +1,6 @@
 // shared/ui/toastConfig.tsx
 import React from "react";
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
 
 /** Palet pastel sederhana */
 const pastel = {
@@ -105,7 +105,7 @@ export const toastConfig = {
     const isIn = variant === "in";
     const title = isIn ? "Check-in berhasil" : "Check-out berhasil";
     const subtitle = [timeStr, location].filter(Boolean).join(" • ");
-    const palette = isIn ? pastel.in : pastel.out;
+    const palette = isIn ? pastel.info : pastel.out;
 
     return <PastelToast title={title} subtitle={subtitle} palette={palette} />;
   },

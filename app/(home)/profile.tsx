@@ -1,15 +1,15 @@
 // app/(home)/profile.tsx
+import { MaterialIcons } from "@expo/vector-icons";
+import { Redirect, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter, Redirect } from "expo-router";
 import Toast from "react-native-toast-message";
 
+import { useEmployeeProfile } from "@/shared/employee/hooks/userEmployees";
+import { useAuth } from "@/shared/providers/AuthProvider";
 import { Button } from "@/shared/ui/button";
 import ConfirmSheet from "@/shared/ui/confirmSheet";
-import { useEmployeeProfile } from "@/shared/hooks/userEmployees";
-import { useAuth } from "@/shared/providers/AuthProvider";
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -22,13 +22,11 @@ export default function ProfileScreen() {
     try {
       await logout();
       Toast.show({ 
-        type: "success", 
+        type: "info", 
         text1: "Logout berhasil",
         text1Style: { fontFamily: "Poppins_600SemiBold", fontSize: 14 }, 
       });
     } finally {
-      // biarkan AuthGate mengarahkan, tapi boleh juga langsung
-      // router.replace("/(auth)/login");
     }
   };
 
@@ -90,7 +88,7 @@ export default function ProfileScreen() {
   return (
     <View className="flex-1 bg-white">
       {/* Header */}
-      <View className="bg-emerald-600 px-5 pt-10 pb-6 rounded-b-3xl">
+      <View className="bg-blue-600 px-5 pt-10 pb-6 rounded-b-3xl">
         <View className="flex-row items-center justify-between">
           <Text className="text-white text-xl font-semibold">Profile</Text>
           <Pressable
@@ -109,14 +107,14 @@ export default function ProfileScreen() {
         <View className="bg-white rounded-3xl p-5 shadow-lg border border-black/5">
           {/* Avatar */}
           <View className="items-center">
-            <View className="h-24 w-24 rounded-full bg-emerald-600 items-center justify-center shadow-md">
+            <View className="h-24 w-24 rounded-full bg-blue-600 items-center justify-center shadow-md">
               <MaterialIcons name="person" size={56} color="#fff" />
             </View>
 
             <Text className="text-2xl font-semibold mt-4">{fullName}</Text>
 
             {(emp.position?.name || emp.department?.name) ? (
-              <Text className="text-emerald-700 font-medium italic mt-1">
+              <Text className="text-blue-700 font-medium italic mt-1">
                 {[emp.position?.name, emp.department?.name].filter(Boolean).join(" • ")}
               </Text>
             ) : null}

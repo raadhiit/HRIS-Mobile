@@ -1,4 +1,12 @@
-// app/providers/AuthProvider.tsx
+import {
+  getEmployeeProfile,
+  type EmployeeProfile,
+} from "@/shared/api/employee";
+import {
+  clearToken,
+  setToken as persistToken,
+  getToken as readToken,
+} from "@/shared/api/http";
 import React, {
   createContext,
   useContext,
@@ -7,24 +15,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  getToken as readToken,
-  setToken as persistToken,
-  clearToken,
-} from "@/shared/api/http";
-import {
-  getEmployeeProfile,
-  type EmployeeProfile,
-} from "@/shared/api/prod/profile/employee";
 
 type AuthCtxValue = {
   token: string | null;
   employee: EmployeeProfile | null;
-  hydrated: boolean;                       // selesai init dari storage & (jika ada token) fetch profil
+  hydrated: boolean;
   setToken: (t: string | null) => Promise<void>;
   setEmployee: (e: EmployeeProfile | null) => void;
   logout: () => Promise<void>;
-  // optional helper bila butuh refresh manual
   refreshEmployee: () => Promise<EmployeeProfile | null>;
 };
 
@@ -35,7 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [employee, setEmployee] = useState<EmployeeProfile | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  // Guard sederhana agar fetch profil tidak dobel
   const inflightRef = useRef(false);
   const bootOnceRef = useRef(false);
 
@@ -47,22 +44,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const t = await readToken();
       setTokenState(t ?? null);
-      setHydrated(true); // hydrated berarti token sudah dipulihkan dari storage
+      setHydrated(true);
       console.log("[AuthProvider] hydrated. token?", !!t);
     })();
   }, []);
 
   // 2) Fetch profil HANYA setelah token ada, employee belum ada, dan tidak sedang fetch
   useEffect(() => {
-    if (!token) return;            // tidak ada token → tidak fetch
-    if (employee) return;          // sudah ada profil → tidak fetch lagi
+    if (!token) return;
+    if (employee) return;
     if (inflightRef.current) return;
 
     inflightRef.current = true;
     console.log("[AuthProvider] fetch profile start");
     (async () => {
       try {
-        const prof = await getEmployeeProfile();     // ← inilah satu-satunya fetch profil
+        const prof = await getEmployeeProfile();
         setEmployee(prof);
         console.log("[AuthProvider] fetch profile done");
       } catch (e: any) {
@@ -83,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (t) {
       await persistToken(t);
       setTokenState(t);
-      // employee akan di-fetch otomatis oleh efek di atas
     } else {
       await clearToken();
       setTokenState(null);
@@ -94,11 +90,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Optional: refresh manual bila ada aksi update profil
   const refreshEmployee = async (): Promise<EmployeeProfile | null> => {
     if (!token) return null;
-    if (inflightRef.current) return employee; // sedang fetch; cukup kembalikan yang ada
+    if (inflightRef.current) return employee;
     inflightRef.current = true;
     try {
       console.log("[AuthProvider] refresh profile");
-      const prof = await getEmployeeProfile(true); // jika kamu menambahkan opsi force, boleh pakai true
+      const prof = await getEmployeeProfile(true);
       setEmployee(prof);
       return prof;
     } catch (e: any) {

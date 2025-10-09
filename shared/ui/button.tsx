@@ -33,7 +33,7 @@ const sizes: Record<ButtonSize, string> = {
 };
 
 const variants: Record<ButtonVariant, string> = {
-    primary: "bg-[#2ecc71]",
+    primary: "bg-blue-600",
     secondary: "bg-slate-800",
     outline: "border border-slate-300 bg-transparent",
     ghost: "bg-transparent",

@@ -1,6 +1,6 @@
 // shared/api/http.ts
 import * as SecureStore from "expo-secure-store";
-import { getDeviceId } from "../device/id";
+import { getDeviceId } from "../attendance/device/id";
 
 const RAW_BASE = process.env.EXPO_PUBLIC_API_URL || "";
 export const BASE = RAW_BASE.replace(/\/+$/, "");
