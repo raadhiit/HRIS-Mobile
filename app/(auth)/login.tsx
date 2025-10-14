@@ -11,7 +11,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
-import { loginRaw } from "@/shared/api/prod/auth/auth_min"; // ⬅️ cukup loginRaw (hapus duplikasi persist)
+import { loginRaw } from "@/shared/api/prod/auth/auth_min";
 import { useAuth } from "@/shared/providers/AuthProvider";
 import { Button } from "@/shared/ui/button";
 import ResponsiveLogo from "@/shared/ui/responsiveLogo";

@@ -1,8 +1,8 @@
 export type UseDetectedLocationOptions = {
   simulateError?: boolean;
   timeoutMs?: number;
-  alwaysRequestOnMount?: boolean; // default: false (hemat request)
-  resolveName?: boolean;          // default: false (jangan reverse geocode)
+  alwaysRequestOnMount?: boolean;
+  resolveName?: boolean;
 };
 
 export type DetectedCoords = {

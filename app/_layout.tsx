@@ -1,7 +1,7 @@
 import 'react-native-reanimated';
-import { AuthProvider, useAuth } from '@/shared/providers/AuthProvider';
+import { AuthProvider } from '@/shared/providers/AuthProvider';
 import { useFonts } from "expo-font";
-import { Stack, useSegments, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -19,31 +19,6 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
-
-// function AuthGate({ children }: { children: React.ReactNode }) {
-//   const segments = useSegments();
-//   const router = useRouter();
-//   const { token, hydrated } = useAuth();
-
-//   // Jalankan sekali saat hydrated berubah → putuskan akses
-//   useEffect(() => {
-//     if (!hydrated) return;
-
-//     const inAuth = segments[0] === "(auth)";
-//     const inHome = segments[0] === "(home)";
-
-//     if (!token && !inAuth) {
-//       router.replace("/(auth)/login");
-//     } else if (token && inAuth) {
-//       router.replace("/(home)");
-//     }
-//     // kalau token & inHome → biarkan
-//   }, [segments, token, hydrated]);
-
-//   // Tahan UI sampai hydrated supaya tidak lompat-lompat
-//   if (!hydrated) return null;
-//   return <>{children}</>;
-// }
 
 export default function RootLayout() {
   const scheme = useColorScheme();

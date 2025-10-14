@@ -77,7 +77,7 @@ export default function HomeIndex() {
       {error ? (
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-center text-rose-600 font-roboto">{error}</Text>
-          <Pressable onPress={() => refreshHome()} className="mt-3 px-4 py-2 bg-emerald-600 rounded-xl">
+          <Pressable onPress={() => refreshHome()} className="mt-3 px-4 py-2 bg-blue-600 rounded-xl">
             <Text className="text-white font-roboto-medium">Coba Lagi</Text>
           </Pressable>
         </View>

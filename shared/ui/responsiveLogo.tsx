@@ -7,13 +7,9 @@ type Src = number | RemoteSrc;
 
 type Props = {
   source: Src;
-  /** Maks lebar absolut (px) di layar besar */
   maxWidth?: number;
-  /** Lebar relatif ke layar (0..1) */
   widthPct?: number;
-  /** Maks tinggi absolut (px). Jika tidak diisi, dipakai maxHeightPct */
   maxHeight?: number;
-  /** Maks tinggi relatif ke tinggi layar (0..1), default 0.3 = 30% */
   maxHeightPct?: number;
   accessibilityLabel?: string;
   borderRadius?: number;
@@ -68,7 +64,7 @@ export default function ResponsiveLogo({
       accessibilityLabel={accessibilityLabel}
       style={{
         width: w,
-        height: h,         // ⬅️ sekarang dibatasi, tidak akan kebesaran
+        height: h,
         borderRadius,
         maxWidth: maxW,
         maxHeight: maxH,

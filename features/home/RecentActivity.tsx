@@ -100,15 +100,15 @@ export default function RecentAct() {
                 <View className="flex-row -mx-1 mb-2">
                 <StatTile
                     icon="login"
-                    iconColor="#3B82F6"   // ✅ Brand (blue-600)
-                    badgeBg="#F1F5F9"     // Neutral (slate-100)
+                    iconColor="#3B82F6"
+                    badgeBg="#F1F5F9"
                     title="Check-in"
                     value={checkInLabel}
                 />
                 <StatTile
                     icon="logout"
-                    iconColor="#DC2626"   // ✅ Semantic (red)
-                    badgeBg="#F1F5F9"     // Neutral
+                    iconColor="#DC2626"
+                    badgeBg="#F1F5F9"
                     title="Check-out"
                     value={checkOutLabel}
                 />
@@ -117,14 +117,14 @@ export default function RecentAct() {
                 <View className="flex-row -mx-1">
                 <StatTile
                     icon="schedule"
-                    iconColor="#3B82F6"   // gunakan brand color biru (konsisten)
+                    iconColor="#3B82F6"
                     badgeBg="#F1F5F9"
                     title="Durasi"
                     value={workDurationLabel}
                 />
                 <StatTile
                     icon="timer"
-                    iconColor="#DC2626"   // warna semantic merah utk overtime (aksi berat)
+                    iconColor="#DC2626"
                     badgeBg="#F1F5F9"
                     title="Overtime"
                     value={overtimeLabel}

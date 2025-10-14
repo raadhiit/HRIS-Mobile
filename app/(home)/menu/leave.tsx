@@ -8,7 +8,6 @@ import Page from "@/features/home/layouts/Page";
 import Input from "@/shared/ui/input";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
-// import { mockHome } from "@/shared/api/mocks";
 import LeaveTypeDropdown from "@/features/home/components/ApiDropdown";
 import Toast from "react-native-toast-message";
 

@@ -21,8 +21,3 @@ export default function Index() {
   if (!ready) return null;
   return <Redirect href={loggedIn ? "/(home)" : "/(auth)/login"} />;
 }
-
-
-// export default function Index() {
-//   return null;
-// }

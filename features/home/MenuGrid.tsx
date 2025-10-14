@@ -40,13 +40,13 @@ export default function MenuGrid() {
   const handleMenuPress = (menuTitle: MenuTitle) => {
     switch (menuTitle) {
       case "Lembur":
-        router.push("/(home)/overtime");
+        router.push("/(home)/menu/overtime");
         break;
       case "Izin/Cuti":
-        router.push("/(home)/leave");
+        router.push("/(home)/menu/leave");
         break;
       case "History Absensi":
-        router.push("/(home)/historyAttendance");
+        router.push("/(home)/menu/historyAttendance");
         break;
     }
   };

@@ -3,8 +3,6 @@ import { useState } from "react";
 import Page from "@/features/home/layouts/Page";
 import Input from "@/shared/ui/input";
 import { MaterialIcons } from "@expo/vector-icons";
-// import { History } from "@/shared/api/types";
-// import { mockHome } from "@/shared/api/mocks";
 
 export default function LemburPage() {
   const [form, setForm] = useState({
@@ -16,8 +14,6 @@ export default function LemburPage() {
   });
   
   const set = (k: keyof typeof form) => (v:string) => setForm((s) => ({ ...s, [k]: v }));
-
-  // const history: History[] = mockHome.history?? [];
 
   const doSubmit = () => {
     console.log("OVERTIME SUBMIT", form);

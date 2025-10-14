@@ -9,10 +9,10 @@ export function useEmployeeProfile() {
   const refresh = useCallback(() => refreshEmployee(), [refreshEmployee]);
 
   return {
-    data,      // EmployeeProfile | null (sekarang punya user_id)
-    loading,   // boolean
+    data,
+    loading,
     ready: hydrated,
     loggedIn: !!token,
-    refresh,   // () => Promise<EmployeeProfile | null>
+    refresh,
   };
 }

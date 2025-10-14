@@ -6,9 +6,9 @@ export type Activity = {
   iconName: "login" | "logout";
   ts: number;
   tone: {
-    icon: string;   // warna icon
-    bg: string;     // warna background
-    text: string;   // warna teks
+    icon: string;
+    bg: string;
+    text: string;
   };
 };
 
@@ -34,9 +34,9 @@ export function mapAttendanceToActivities(records: AttendanceRecord[]): Activity
         iconName: "login",
         ts: d.getTime(),
         tone: {
-          icon: "#2563EB",      // blue-600
-          bg: "#EFF6FF",        // blue-50
-          text: "#1D4ED8",      // blue-700
+          icon: "#2563EB",
+          bg: "#EFF6FF",
+          text: "#1D4ED8",
         },
       });
     }
@@ -48,9 +48,9 @@ export function mapAttendanceToActivities(records: AttendanceRecord[]): Activity
         iconName: "logout",
         ts: d.getTime(),
         tone: {
-          icon: "#DC2626",      // red-600
-          bg: "#FEF2F2",        // red-50
-          text: "#991B1B",      // red-700
+          icon: "#DC2626",
+          bg: "#FEF2F2",
+          text: "#991B1B",
         },
       });
     }
