@@ -8,14 +8,23 @@
     "scheme": "hris",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "androidStatusBar": {
+      "translucent": false,
+      "backgroundColor": "#ffffff",
+      "barStyle": "dark-content"
+    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Aplikasi membutuhkan akses kamera untuk presensi.",
-        "NSPhotoLibraryUsageDescription": "Aplikasi membutuhkan akses galeri untuk menyimpan/akses foto presensi."
-      }
+        "NSPhotoLibraryUsageDescription": "Aplikasi membutuhkan akses galeri untuk menyimpan/akses foto presensi.",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.raadhiit.hris"
     },
     "android": {
+      "package": "com.raadhiit.hris",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -23,14 +32,26 @@
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "CAMERA",
-        "ACCESS_FINE_LOCATION"
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ],
-      "androidStatusBar": {
-        "translucent": true,
-        "backgroundColor": "transparent",
-        "barStyle": "light-content"
-      }
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "hris",
+              "host": "app",
+              "pathPrefix": "/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -60,6 +81,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "dea4a773-b179-4d1c-a23e-43fb077f29be"
+      }
+    },
+    "owner": "raadhiit"
   }
 }
