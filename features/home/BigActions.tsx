@@ -2,7 +2,7 @@
 import ModalAttendance from "@/features/home/components/ModalAttendance";
 import { useDetectedLocation } from "@/shared/attendance/hooks/useDetectedLocation";
 import { useAuth } from "@/shared/providers/AuthProvider";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import CircleIcon from "../../shared/ui/CircleIcon";
 import Section from "./components/Section";
@@ -22,18 +22,27 @@ export default function BigActions(props: {
 
   const [open, setOpen] = useState<OpenState>(null);
 
-  const { locationName, coords, loading, error, refresh } = useDetectedLocation({
-    simulateError: simulateLocationError,
-    alwaysRequestOnMount: false,
-    resolveName: false,
-  });
+  const {
+    locationName,
+    coords,
+    loading: locLoading,
+    error: locError,
+    refresh,
+  } = useDetectedLocation({ antiMock: true, resolveName: true });
 
   const { user, employee } = useAuth() as any;
   const userId = employee?.user_id ?? user?.id ?? null;
 
   const resolvedLocationName =
-    loading ? "Mendeteksi lokasi…" : error ? error : (locationName?.trim().length ? "Lokasi Tidak Terdeteksi" : "Lokasi diketahui");
+    locLoading
+      ? "Mendeteksi lokasi…"
+      : locError
+      ? locError
+      : (locationName && locationName.trim().length
+          ? locationName
+          : "Lokasi tidak diketahui");
 
+      
   return (
     <Section title="Absensi" className={className} style={{ elevation: 8 }}>
       {/* tombol */}

@@ -6,7 +6,7 @@ import { BackendDistancePayload, ModalAttendanceProps } from "@/shared/types/att
 import { distanceMeters, toNumberOrNull } from "@/shared/types/geo";
 import { formatJamID, formatTanggalID } from "@/shared/utils/datetime";
 import * as Haptics from "expo-haptics";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Image, Modal, Pressable, Text, View } from "react-native";
 import Toast from "react-native-toast-message";
 
@@ -23,7 +23,6 @@ export default function ModalAttendance({
   const now = new Date();
   const title = variant === "in" ? "Masuk" : "Keluar";
 
-  // warna tombol & kartu waktu tetap seperti sebelumnya
   const tone = {
     cardBg: variant === "in" ? "bg-blue-50" : "bg-rose-50",
     cardBorder: variant === "in" ? "border-blue-100" : "border-rose-100",
@@ -49,26 +48,32 @@ export default function ModalAttendance({
   const accTol = useMemo(() => Math.min(10, (coords?.accuracy ?? 0) * 0.5), [coords?.accuracy]);
 
   const uiAllowed = useMemo(() => {
-    if (uiDistance == null || officeRadius == null) return true; // jika data kantor tidak lengkap, jangan menghalangi
+    if (uiDistance == null || officeRadius == null) return true;
     const effectiveRadius = officeRadius + accTol;
     return uiDistance <= effectiveRadius;
   }, [uiDistance, officeRadius, accTol]);
 
   // ======== State hasil dari backend (post-submit) ========
   const [serverInfo, setServerInfo] = useState<BackendDistancePayload | null>(null);
+  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+  
+  const isMocked = coords?.mocked === true;
 
-  const showAllowed = serverInfo?.allowed ?? uiAllowed;
+  const showAllowed = isMocked ? false : (serverInfo?.allowed ?? uiAllowed);
   const showDistance = serverInfo?.distance_meters ?? uiDistance ?? null;
   const showRadius = serverInfo?.radius_meters ?? officeRadius ?? null;
-
-  const toneCardBg = showAllowed ? "bg-blue-50" : "bg-rose-50";
-  const toneCardBorder = showAllowed ? "border-blue-100" : "border-rose-100";
-  const dotColor = showAllowed ? "bg-blue-500" : "bg-rose-500";
-  const titleText = showAllowed ? "Lokasi Di Dalam Radius" : "Lokasi Berada Di Luar Radius";
-
-  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+  
+  const toneCardBg   = isMocked ? "bg-rose-50"  : showAllowed ? "bg-blue-50"  : "bg-rose-50";
+  const toneCardBorder = isMocked ? "border-rose-100" : showAllowed ? "border-blue-100" : "border-rose-100";
+  const dotColor     = isMocked ? "bg-rose-500" : showAllowed ? "bg-blue-500" : "bg-rose-500";
+  const titleText    = isMocked ? "Lokasi Tidak Valid (Mocked)" : showAllowed ? "Lokasi Di Dalam Radius" : "Lokasi Berada Di Luar Radius";
 
   const handleConfirmPress = async () => {
+    if (isMocked) {
+      // hard guard di sisi UI
+      return;
+    }
+
     const action = variant === "in" ? "MASUK" : "KELUAR";
     console.log(`[ModalAttendance] Aksi: ${action} pada ${now.toISOString()}`);
 
@@ -81,6 +86,10 @@ export default function ModalAttendance({
             longitude: coords.longitude,
             accuracy: coords.accuracy ?? undefined,
             timestamp: coords.timestamp ?? Date.now(),
+            // kirim juga mocked & meta jika tersedia (opsional, bagus untuk server-side)
+            mocked: coords.mocked ?? undefined,
+            speed: coords.speed ?? undefined,
+            ageMs: coords.ageMs ?? undefined,
           }
         : null,
     });
@@ -96,7 +105,6 @@ export default function ModalAttendance({
       setSubmitMsg(res.message ?? null);
 
       if (res.success) {
-        // === Notifikasi sukses ===
         const timeStr = `${formatJamID(new Date(), false)} • ${formatTanggalID(new Date())}`;
 
         emitTodayAttendanceChanged();
@@ -107,11 +115,7 @@ export default function ModalAttendance({
           position: "bottom",
           topOffset: 14,
           visibilityTime: 2500,
-          props: {
-            variant,
-            timeStr, 
-            location: locationName,
-          },
+          props: { variant, timeStr, location: locationName },
         });
 
         onConfirm?.();
@@ -170,32 +174,64 @@ export default function ModalAttendance({
               <View className={`mt-4 rounded-2xl border ${toneCardBorder} ${toneCardBg} p-4`}>
                 <View className="flex-row items-start">
                   <View className={`h-3 w-3 rounded-full ${dotColor} mt-1 mr-3`} />
-                  <View className="flex-1">
-                    <Text className="font-poppins-medium text-slate-800">{titleText}</Text>
-                    <Text className="text-slate-500 mt-0.5">{locationName ?? "-"}</Text>
 
+                  <View className="flex-1">
+                    {/* Judul */}
+                    <Text className="font-poppins-medium text-slate-800">{titleText}</Text>
+
+                    {/* Subjudul / lokasi atau warning mocked */}
+                    <Text className={`mt-0.5 ${
+                      isMocked ? "text-rose-700 font-poppins-bold tracking-wide"
+                              : "text-slate-600"
+                    }`}>
+                      {isMocked ? "FAKE GPS TERDETEKSI" : (locationName ?? "-")}
+                    </Text>
+
+                    {/* Koordinat & info jarak */}
                     {coords && (
-                      <Text className="text-slate-400 mt-1">
+                      <Text className="text-slate-400 mt-1 leading-snug">
                         Lat: {coords.latitude.toFixed(5)} | Lon: {coords.longitude.toFixed(5)}
                         {showDistance != null && showRadius != null
                           ? ` | Jarak: ${Math.round(showDistance)}m / Radius: ${Math.round(showRadius)}m`
                           : ""}
                       </Text>
                     )}
+
+                    {/* Tips saat mocked */}
+                    {isMocked && (
+                      <>
+                        <View className="mt-2">
+                          {[
+                            "Matikan Fake GPS anda agar bisa masuk.",
+                            "Tutup aplikasi lokasi palsu atau nonaktifkan opsi \"Allow mock locations\", lalu coba lagi.",
+                          ].map((txt, i) => (
+                            <View key={`mock-${i}`} className="flex-row items-start mt-1">
+                              <Text className="text-rose-600 mr-2">{'\u2022'}</Text>
+                              <Text className={`flex-1 leading-snug ${
+                                i === 0 ? "text-rose-700 font-poppins-medium" : "text-rose-600 text-sm"
+                              }`}>
+                                {txt}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </>
+                    )}
                   </View>
                 </View>
               </View>
 
-              {!!error && <Text className="text-red-500 mt-2">{error}</Text>}
+              {/* Pesan error bawaan hook kamera / server */}
+              {!!error && <Text className="text-red-500 text-center mt-2">{error}</Text>}
             </View>
 
             {/* Tombol aksi bawah */}
             <View className="px-4 pb-4 mt-3">
               <Pressable
                 onPress={handleConfirmPress}
-                disabled={loading || !photoUri}
+                disabled={loading || !photoUri || isMocked}
                 className={`h-12 rounded-2xl items-center justify-center ${
-                  loading || !photoUri ? "bg-slate-300" : tone.pillBg
+                  loading || !photoUri || isMocked ? "bg-slate-300" : tone.pillBg
                 }`}
               >
                 <Text className="text-white font-poppins-semibold">

@@ -3,6 +3,7 @@ export type UseDetectedLocationOptions = {
   timeoutMs?: number;
   alwaysRequestOnMount?: boolean;
   resolveName?: boolean;
+  antiMock?: boolean;
 };
 
 export type DetectedCoords = {
@@ -10,4 +11,7 @@ export type DetectedCoords = {
   longitude: number;
   accuracy?: number | null;
   timestamp?: number;
+  speed?: number | null;
+  mocked?: boolean | null;
+  ageMs?: number | null;
 };

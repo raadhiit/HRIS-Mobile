@@ -1,6 +1,6 @@
 // shared/hooks/useDetectedLocation.ts
 import * as Location from "expo-location";
-import { Linking } from "react-native";
+import { Linking, Platform } from "react-native";
 import { useCallback, useEffect, useState } from "react";
 import { DetectedCoords, UseDetectedLocationOptions } from "@/shared/types/location";
 
@@ -10,6 +10,7 @@ export function useDetectedLocation(opts: UseDetectedLocationOptions = {}) {
     timeoutMs = 15000,
     alwaysRequestOnMount = false,
     resolveName = false,
+    antiMock = true,
   } = opts;
 
   const [locationName, setLocationName] = useState<string | null>(null);
@@ -58,14 +59,22 @@ export function useDetectedLocation(opts: UseDetectedLocationOptions = {}) {
 
         const position = await Promise.race([
           Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High,
+            accuracy: Location.Accuracy.Highest,
+            mayShowUserSettingsDialog: true, // ini valid di expo-location
           }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error("Waktu ambil lokasi habis.")), timeoutMs)
           ),
         ]);
 
-        const { latitude, longitude, accuracy } = position.coords;
+        // === Anti-mock: andalkan flag dari Android ===
+        const isMocked = (position as any)?.mocked === true;
+        if (antiMock && Platform.OS === "android" && isMocked) {
+          setError("Mock location terdeteksi. Matikan aplikasi lokasi palsu."); // opsional
+        }
+
+        const { latitude, longitude, accuracy, speed } = position.coords;
+        const ts = typeof position.timestamp === "number" ? position.timestamp : Date.now();
 
         let name: string | null = null;
         if (resolveName) {
@@ -77,7 +86,10 @@ export function useDetectedLocation(opts: UseDetectedLocationOptions = {}) {
           latitude,
           longitude,
           accuracy: accuracy ?? null,
-          timestamp: Date.now(),
+          timestamp: ts,
+          speed: speed ?? null,
+          mocked: isMocked,
+          ageMs: Date.now() - ts,
         });
         setLocationName(name);
       } catch (e: any) {
@@ -92,7 +104,7 @@ export function useDetectedLocation(opts: UseDetectedLocationOptions = {}) {
 
     run();
     return () => { isCancelled = true; };
-  }, [ensurePermission, resolveName, simulateError, timeoutMs]);
+  }, [ensurePermission, resolveName, simulateError, timeoutMs, antiMock]);
 
   useEffect(() => {
     if (alwaysRequestOnMount) {

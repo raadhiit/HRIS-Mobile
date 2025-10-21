@@ -1,6 +1,14 @@
 export type AttendanceVariant = "in" | "out";
 export type Variant = "in" | "out";
-export type Coords = { latitude: number; longitude: number; accuracy?: number | null; timestamp?: number };
+export type Coords = { 
+  latitude: number; 
+  longitude: number; 
+  accuracy?: number | null; 
+  timestamp?: number,
+  speed?: number | null;   // m/s
+  mocked?: boolean | null; // Android: true jika lokasi dari mock provider
+  ageMs?: number | null;
+};
 
 export type AttendancePayload = {
   type: "check-in" | "check-out";
@@ -10,7 +18,15 @@ export type AttendancePayload = {
   longitude?: number | null;
   accuracy?: number | null;
   captured_at?: number;
+
+  // ---- tambahkan ini agar TS tidak error saat kirim meta ----
+  location_speed?: number | null;
+  location_age_ms?: number | null;
+  location_mocked?: boolean | null;
+  client_location_meta?: string;
+  client_now_ms?: number;
 };
+
 
 export type AttendanceResponse = {
   success: boolean;
@@ -34,6 +50,9 @@ export interface ModalAttendanceProps  {
   token: string;
   coords?: Coords | null;
   userId?: number | null;
+  onRefreshCoords?: () => void;
+  loadingLocation?: boolean;
+  locError?: string | null;
 }
 
 export type BackendDistancePayload = {

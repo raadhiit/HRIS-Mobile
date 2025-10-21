@@ -2,16 +2,12 @@ import { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { submitAttendanceMobileMultipart } from "@/shared/api/attendanceAPI";
 import { AttendanceResponse, AttendanceVariant } from "@/shared/types/attendance";
+import type { Coords } from "@/shared/types/attendance"; // <- pakai Coords yang sudah extend
 
 type SubmitExtra = {
   userId?: number | null;
   locationName?: string | null;
-  coords?: {
-    latitude: number;
-    longitude: number;
-    accuracy?: number | null;
-    timestamp?: number;
-  } | null;
+  coords?: Coords | null; // <- penting: sinkron dengan tipe Coords kamu
 };
 
 export function useAttendanceCamera(token: string) {
@@ -27,7 +23,7 @@ export function useAttendanceCamera(token: string) {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.6, 
+      quality: 0.6,
       base64: false,
       exif: false,
     });
@@ -58,9 +54,28 @@ export function useAttendanceCamera(token: string) {
       const res = await submitAttendanceMobileMultipart(
         variant,
         {
+          // payload ke server
           user_id: extra.userId ?? null,
+          location_name: extra.locationName ?? null,
           latitude: extra.coords?.latitude ?? null,
           longitude: extra.coords?.longitude ?? null,
+          accuracy: extra.coords?.accuracy ?? null,
+          captured_at: extra.coords?.timestamp ?? Date.now(),
+
+          // ---- meta kualitas pembacaan (opsional tapi disarankan) ----
+          location_speed: extra.coords?.speed ?? null,
+          location_age_ms: extra.coords?.ageMs ?? null,
+          location_mocked: extra.coords?.mocked ?? null,
+          client_location_meta: extra.coords
+            ? JSON.stringify({
+                accuracy: extra.coords.accuracy ?? null,
+                speed: extra.coords.speed ?? null,
+                ageMs: extra.coords.ageMs ?? null,
+                mocked: extra.coords.mocked ?? null,
+                ts: extra.coords.timestamp ?? Date.now(),
+              })
+            : undefined,
+          client_now_ms: Date.now(),
         },
         photoUri
       );
