@@ -2,12 +2,12 @@
   "expo": {
     "name": "HRIS",
     "slug": "HRIS",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/hris_rshm_icon_512x512.png",
+    "newArchEnabled": true,
     "scheme": "hris",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "androidStatusBar": {
       "translucent": false,
       "backgroundColor": "#ffffff",
@@ -24,21 +24,14 @@
     },
     "android": {
       "package": "com.raadhiit.hris",
-      "versionCode": 3,
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/hris_rshm_icon_512x512.png",
         "backgroundColor": "#ffffff"
       },
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.CAMERA",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO"
-      ],
+      "permissions": ["android.permission.CAMERA", "android.permission.ACCESS_FINE_LOCATION", "android.permission.RECORD_AUDIO", "android.permission.CAMERA", "android.permission.ACCESS_FINE_LOCATION", "android.permission.RECORD_AUDIO"],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -49,10 +42,7 @@
               "pathPrefix": "/"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -92,9 +82,7 @@
       }
     },
     "owner": "raadhiit",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "23",
     "updates": {
       "url": "https://u.expo.dev/dea4a773-b179-4d1c-a23e-43fb077f29be"
     }
